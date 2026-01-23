@@ -1,6 +1,7 @@
 import { Logo } from '@/components/Logo';
 import { CSVImport } from '@/components/CSVImport';
 import { UserManagement } from '@/components/UserManagement';
+import { AuditLogViewer } from '@/components/AuditLogViewer';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
@@ -62,6 +63,11 @@ export default function Admin() {
               <li>Registros com a mesma data serão atualizados automaticamente</li>
             </ul>
           </div>
+        </section>
+
+        {/* Audit Logs Section */}
+        <section>
+          <AuditLogViewer />
         </section>
       </main>
     </div>

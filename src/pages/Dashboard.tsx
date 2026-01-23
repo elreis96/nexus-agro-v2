@@ -45,10 +45,15 @@ export default function Dashboard() {
               
               {/* User menu */}
               <div className="flex items-center gap-2 ml-4 pl-4 border-l border-border/50">
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={() => navigate('/profile')}
+                  className="gap-2 text-muted-foreground hover:text-foreground"
+                >
                   <User className="h-4 w-4" />
                   <span className="hidden sm:inline">{profile?.nome || profile?.email}</span>
-                </div>
+                </Button>
                 
                 {isAdmin && (
                   <Button 
