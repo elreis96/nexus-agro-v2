@@ -60,6 +60,45 @@ export default function Auth() {
     }
   }, [user, isLoading, navigate]);
 
+  // Handle Auth Errors from URL Hash (e.g. expired links)
+  useEffect(() => {
+    const hash = window.location.hash;
+    if (hash && hash.includes("error=")) {
+      const params = new URLSearchParams(hash.substring(1)); // Remove the #
+      const errorCode = params.get("error_code");
+      const errorDescription = params.get("error_description");
+
+      if (errorCode || errorDescription) {
+        // Clear the hash to prevent showing the error again on refresh
+        window.history.replaceState(
+          null,
+          "",
+          window.location.pathname + window.location.search,
+        );
+
+        let title = "Erro de Autenticação";
+        let description =
+          errorDescription?.replace(/\+/g, " ") ||
+          "Ocorreu um erro durante a autenticação.";
+
+        // Customize messages for common errors
+        if (errorCode === "otp_expired") {
+          title = "Link Expirado";
+          description =
+            "O link de confirmação expirou. Faça login novamente para receber um novo.";
+        } else if (errorCode === "access_denied") {
+          title = "Acesso Negado";
+        }
+
+        toast({
+          variant: "destructive",
+          title,
+          description,
+        });
+      }
+    }
+  }, [toast]);
+
   const validateForm = (isSignUp: boolean) => {
     const newErrors: typeof errors = {};
 
