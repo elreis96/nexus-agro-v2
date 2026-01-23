@@ -121,8 +121,48 @@ class APIClient {
     return response.json();
   }
 
-  // TODO: Add more endpoints as migration progresses
-  // async getMarketData(startDate?: string, endDate?: string): Promise<MarketData[]>
+  // ============ ANALYTICS ============
+
+  async getMarketData(startDate?: string, endDate?: string): Promise<any[]> {
+    const params = new URLSearchParams();
+    if (startDate) params.append('start_date', startDate);
+    if (endDate) params.append('end_date', endDate);
+
+    return this.request<any[]>(
+      `/api/market-data?${params.toString()}`
+    );
+  }
+
+  async getClimateData(startDate?: string, endDate?: string, location?: string): Promise<any[]> {
+    const params = new URLSearchParams();
+    if (startDate) params.append('start_date', startDate);
+    if (endDate) params.append('end_date', endDate);
+    if (location) params.append('location', location);
+
+    return this.request<any[]>(
+      `/api/climate-data?${params.toString()}`
+    );
+  }
+
+  async getCorrelationAnalysis(startDate?: string, endDate?: string): Promise<any> {
+    const params = new URLSearchParams();
+    if (startDate) params.append('start_date', startDate);
+    if (endDate) params.append('end_date', endDate);
+
+    return this.request<any>(
+      `/api/analytics/correlation?${params.toString()}`
+    );
+  }
+
+  async getVolatilityAnalysis(startDate?: string, endDate?: string): Promise<any> {
+    const params = new URLSearchParams();
+    if (startDate) params.append('start_date', startDate);
+    if (endDate) params.append('end_date', endDate);
+
+    return this.request<any>(
+      `/api/analytics/volatility?${params.toString()}`
+    );
+  }
 }
 
 export interface ImportResult {
