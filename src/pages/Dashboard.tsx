@@ -5,6 +5,7 @@ import { ExecutiveCard } from '@/components/ExecutiveCard';
 import { PeriodSelector } from '@/components/PeriodSelector';
 import { IAStrategistPanel } from '@/components/IAStrategistPanel';
 import { MarketAlerts } from '@/components/MarketAlerts';
+import { NotificationCenter } from '@/components/NotificationCenter';
 import { ClimateLagChart } from '@/components/charts/ClimateLagChart';
 import { VolatilityBoxplot } from '@/components/charts/VolatilityBoxplot';
 import { CorrelationScatter } from '@/components/charts/CorrelationScatter';
@@ -45,6 +46,8 @@ export default function Dashboard() {
               
               {/* User menu */}
               <div className="flex items-center gap-2 ml-4 pl-4 border-l border-border/50">
+                <NotificationCenter />
+                
                 <Button 
                   variant="ghost" 
                   size="sm" 
