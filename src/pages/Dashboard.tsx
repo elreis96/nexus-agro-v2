@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Logo } from "@/components/Logo";
 import { ExecutiveCard } from "@/components/ExecutiveCard";
@@ -48,6 +48,17 @@ export default function Dashboard() {
 
   const { profile, isAdmin, signOut } = useAuth();
   const navigate = useNavigate();
+
+  // Debug: Log data to console
+  useEffect(() => {
+    console.log("📊 Dashboard Data:", {
+      stats,
+      volatilidade: volatilidade?.length,
+      correlacao: correlacao?.length,
+      lagChuva: lagChuva?.length,
+      period,
+    });
+  }, [stats, volatilidade, correlacao, lagChuva, period]);
 
   const handleSignOut = async () => {
     await signOut();
@@ -175,7 +186,25 @@ export default function Dashboard() {
                 Relação entre chuva (lag 60 dias) e preço do Boi Gordo - A chuva
                 de hoje impacta o preço em ~60 dias
               </p>
-              <ClimateLagChart data={lagChuva || []} isLoading={lagLoading} />
+              {lagLoading ? (
+                <div className="h-80 flex items-center justify-center">
+                  <div className="animate-pulse text-muted-foreground">
+                    Carregando...
+                  </div>
+                </div>
+              ) : lagChuva && lagChuva.length > 0 ? (
+                <ClimateLagChart data={lagChuva} isLoading={lagLoading} />
+              ) : (
+                <div className="h-80 flex items-center justify-center border border-dashed border-border rounded-lg">
+                  <div className="text-center text-muted-foreground">
+                    <p className="text-lg mb-2">📊 Sem dados disponíveis</p>
+                    <p className="text-sm">Período: {period}</p>
+                    <p className="text-xs mt-2">
+                      Dados: {lagChuva?.length || 0} registros
+                    </p>
+                  </div>
+                </div>
+              )}
             </div>
           </section>
 
@@ -187,19 +216,53 @@ export default function Dashboard() {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <div className="chart-container">
                 <h3 className="font-medium mb-3">Volatilidade Boi Gordo</h3>
-                <VolatilityBoxplot
-                  data={volatilidade || []}
-                  asset="boi"
-                  isLoading={volLoading}
-                />
+                {volLoading ? (
+                  <div className="h-80 flex items-center justify-center">
+                    <div className="animate-pulse text-muted-foreground">
+                      Carregando...
+                    </div>
+                  </div>
+                ) : volatilidade && volatilidade.length > 0 ? (
+                  <VolatilityBoxplot
+                    data={volatilidade}
+                    asset="boi"
+                    isLoading={volLoading}
+                  />
+                ) : (
+                  <div className="h-80 flex items-center justify-center border border-dashed border-border rounded-lg">
+                    <div className="text-center text-muted-foreground">
+                      <p>📊 Sem dados de volatilidade</p>
+                      <p className="text-xs mt-2">
+                        Dados: {volatilidade?.length || 0} registros
+                      </p>
+                    </div>
+                  </div>
+                )}
               </div>
               <div className="chart-container">
                 <h3 className="font-medium mb-3">Volatilidade Dólar</h3>
-                <VolatilityBoxplot
-                  data={volatilidade || []}
-                  asset="dolar"
-                  isLoading={volLoading}
-                />
+                {volLoading ? (
+                  <div className="h-80 flex items-center justify-center">
+                    <div className="animate-pulse text-muted-foreground">
+                      Carregando...
+                    </div>
+                  </div>
+                ) : volatilidade && volatilidade.length > 0 ? (
+                  <VolatilityBoxplot
+                    data={volatilidade}
+                    asset="dolar"
+                    isLoading={volLoading}
+                  />
+                ) : (
+                  <div className="h-80 flex items-center justify-center border border-dashed border-border rounded-lg">
+                    <div className="text-center text-muted-foreground">
+                      <p>📊 Sem dados de volatilidade</p>
+                      <p className="text-xs mt-2">
+                        Dados: {volatilidade?.length || 0} registros
+                      </p>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </section>
@@ -213,10 +276,25 @@ export default function Dashboard() {
               <p className="text-sm text-muted-foreground mb-4">
                 Dólar x JBS - Análise de dependência entre ativos
               </p>
-              <CorrelationScatter
-                data={correlacao || []}
-                isLoading={corrLoading}
-              />
+              {corrLoading ? (
+                <div className="h-80 flex items-center justify-center">
+                  <div className="animate-pulse text-muted-foreground">
+                    Carregando...
+                  </div>
+                </div>
+              ) : correlacao && correlacao.length > 0 ? (
+                <CorrelationScatter data={correlacao} isLoading={corrLoading} />
+              ) : (
+                <div className="h-80 flex items-center justify-center border border-dashed border-border rounded-lg">
+                  <div className="text-center text-muted-foreground">
+                    <p className="text-lg mb-2">📊 Sem dados de correlação</p>
+                    <p className="text-sm">Período: {period}</p>
+                    <p className="text-xs mt-2">
+                      Dados: {correlacao?.length || 0} registros
+                    </p>
+                  </div>
+                </div>
+              )}
             </div>
           </section>
         </main>
