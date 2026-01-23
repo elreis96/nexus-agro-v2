@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { z } from 'zod';
 import { Logo } from '@/components/Logo';
 import { Button } from '@/components/ui/button';
@@ -9,6 +9,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
+import { ForgotPasswordForm } from '@/components/ForgotPasswordForm';
+import { ResetPasswordForm } from '@/components/ResetPasswordForm';
 import { Loader2 } from 'lucide-react';
 
 const emailSchema = z.string().trim().email('Email inválido').max(255, 'Email muito longo');
@@ -21,6 +23,10 @@ export default function Auth() {
   const [nome, setNome] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState<{ email?: string; password?: string; nome?: string }>({});
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  
+  const [searchParams] = useSearchParams();
+  const isResetMode = searchParams.get('mode') === 'reset';
   
   const { signIn, signUp, user, isLoading } = useAuth();
   const navigate = useNavigate();
@@ -113,6 +119,33 @@ export default function Auth() {
     );
   }
 
+  // Show reset password form if in reset mode
+  if (isResetMode) {
+    return (
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4">
+        <div className="mb-8">
+          <Logo size="lg" />
+        </div>
+        
+        <Card className="w-full max-w-md border-border/50 bg-card/50 backdrop-blur-sm">
+          <CardHeader className="text-center">
+            <CardTitle className="text-gradient-gold">Redefinir Senha</CardTitle>
+            <CardDescription>
+              Crie uma nova senha para sua conta
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ResetPasswordForm />
+          </CardContent>
+        </Card>
+        
+        <p className="mt-6 text-sm text-muted-foreground text-center">
+          AgroData Nexus © 2026 Verde Futuro Capital
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4">
       <div className="mb-8">
@@ -127,6 +160,9 @@ export default function Auth() {
           </CardDescription>
         </CardHeader>
         <CardContent>
+          {showForgotPassword ? (
+            <ForgotPasswordForm onBack={() => setShowForgotPassword(false)} />
+          ) : (
           <Tabs defaultValue="login" className="w-full">
             <TabsList className="grid w-full grid-cols-2 mb-6">
               <TabsTrigger value="login">Entrar</TabsTrigger>
@@ -180,6 +216,15 @@ export default function Auth() {
                   ) : (
                     'Entrar'
                   )}
+                </Button>
+                
+                <Button 
+                  type="button" 
+                  variant="link" 
+                  className="w-full text-sm text-muted-foreground hover:text-primary"
+                  onClick={() => setShowForgotPassword(true)}
+                >
+                  Esqueci minha senha
                 </Button>
               </form>
             </TabsContent>
@@ -251,6 +296,7 @@ export default function Auth() {
               </form>
             </TabsContent>
           </Tabs>
+          )}
         </CardContent>
       </Card>
       

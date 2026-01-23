@@ -1,1 +1,4 @@
 project_id = "tifznshvojjsgtmjopbb"
+
+[functions.send-critical-alerts]
+verify_jwt = false
