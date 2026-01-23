@@ -1,16 +1,12 @@
 import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import type { AlertLevel } from '@/lib/types';
 
 export interface Notification {
-  id: string;
-  user_id: string;
+  id: number;
+  user_id: string | null;
   title: string;
-  description: string;
-  level: AlertLevel;
-  category: 'volatilidade' | 'clima' | 'mercado';
-  is_read: boolean;
+  body: string;
   created_at: string;
 }
 
@@ -32,20 +28,14 @@ export function useNotifications() {
       const { data, error } = await supabase
         .from('notifications')
         .select('*')
-        .eq('user_id', user.id)
+        .or(`user_id.eq.${user.id},user_id.is.null`)
         .order('created_at', { ascending: false })
         .limit(50);
 
       if (error) throw error;
 
-      const typedData = (data || []).map(n => ({
-        ...n,
-        level: n.level as AlertLevel,
-        category: n.category as 'volatilidade' | 'clima' | 'mercado',
-      }));
-
-      setNotifications(typedData);
-      setUnreadCount(typedData.filter(n => !n.is_read).length);
+      setNotifications(data || []);
+      setUnreadCount(data?.length || 0);
     } catch (error) {
       console.error('Error fetching notifications:', error);
     } finally {
@@ -53,52 +43,8 @@ export function useNotifications() {
     }
   }, [user]);
 
-  // Mark notification as read
-  const markAsRead = useCallback(async (notificationId: string) => {
-    if (!user) return;
-
-    try {
-      const { error } = await supabase
-        .from('notifications')
-        .update({ is_read: true })
-        .eq('id', notificationId)
-        .eq('user_id', user.id);
-
-      if (error) throw error;
-
-      setNotifications(prev => 
-        prev.map(n => 
-          n.id === notificationId ? { ...n, is_read: true } : n
-        )
-      );
-      setUnreadCount(prev => Math.max(0, prev - 1));
-    } catch (error) {
-      console.error('Error marking notification as read:', error);
-    }
-  }, [user]);
-
-  // Mark all as read
-  const markAllAsRead = useCallback(async () => {
-    if (!user) return;
-
-    try {
-      const { error } = await supabase
-        .from('notifications')
-        .update({ is_read: true })
-        .eq('user_id', user.id)
-        .eq('is_read', false);
-
-      if (error) throw error;
-
-      setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
-      setUnreadCount(0);
-    } catch (error) {
-      console.error('Error marking all as read:', error);
-    }
-  }, [user]);
-
   // Delete notification
-  const deleteNotification = useCallback(async (notificationId: string) => {
+  const deleteNotification = useCallback(async (notificationId: number) => {
     if (!user) return;
 
     try {
@@ -110,23 +56,54 @@ export function useNotifications() {
 
       if (error) throw error;
 
-      setNotifications(prev => {
-        const notification = prev.find(n => n.id === notificationId);
-        if (notification && !notification.is_read) {
-          setUnreadCount(c => Math.max(0, c - 1));
-        }
-        return prev.filter(n => n.id !== notificationId);
-      });
+      setNotifications(prev => prev.filter(n => n.id !== notificationId));
+      setUnreadCount(prev => Math.max(0, prev - 1));
     } catch (error) {
       console.error('Error deleting notification:', error);
     }
   }, [user]);
+
+  // Create test notification if none exists
+  const createTestNotification = useCallback(async () => {
+    if (!user) return;
+
+    try {
+      // Check if test notification already exists
+      const { data: existing } = await supabase
+        .from('notifications')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('title', 'Sistema de alertas ativo')
+        .limit(1);
+
+      if (existing && existing.length > 0) {
+        return; // Test notification already exists
+      }
+
+      // Create test notification
+      const { error } = await supabase
+        .from('notifications')
+        .insert({
+          user_id: user.id,
+          title: 'Sistema de alertas ativo',
+          body: 'O AgroData Nexus está monitorando clima e mercado em tempo quase real.',
+        });
+
+      if (error) throw error;
+
+      // Refresh notifications
+      await fetchNotifications();
+    } catch (error) {
+      console.error('Error creating test notification:', error);
+    }
+  }, [user, fetchNotifications]);
 
   // Subscribe to realtime updates
   useEffect(() => {
     if (!user) return;
 
     fetchNotifications();
+    createTestNotification();
 
     // Subscribe to new notifications
     const channel = supabase
@@ -140,43 +117,18 @@ export function useNotifications() {
           filter: `user_id=eq.${user.id}`,
         },
         (payload) => {
-          const newNotification = {
-            ...payload.new,
-            level: payload.new.level as AlertLevel,
-            category: payload.new.category as 'volatilidade' | 'clima' | 'mercado',
-          } as Notification;
-
+          const newNotification = payload.new as Notification;
           setNotifications(prev => [newNotification, ...prev]);
           setUnreadCount(prev => prev + 1);
 
           // Show browser notification if permitted
           if ('Notification' in window && Notification.permission === 'granted') {
             new Notification(newNotification.title, {
-              body: newNotification.description,
+              body: newNotification.body,
               icon: '/favicon.ico',
-              tag: newNotification.id,
+              tag: String(newNotification.id),
             });
           }
-        }
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'notifications',
-          filter: `user_id=eq.${user.id}`,
-        },
-        (payload) => {
-          const updated = {
-            ...payload.new,
-            level: payload.new.level as AlertLevel,
-            category: payload.new.category as 'volatilidade' | 'clima' | 'mercado',
-          } as Notification;
-
-          setNotifications(prev =>
-            prev.map(n => (n.id === updated.id ? updated : n))
-          );
         }
       )
       .on(
@@ -190,6 +142,7 @@ export function useNotifications() {
         (payload) => {
           const deletedId = payload.old.id;
           setNotifications(prev => prev.filter(n => n.id !== deletedId));
+          setUnreadCount(prev => Math.max(0, prev - 1));
         }
       )
       .subscribe();
@@ -197,7 +150,7 @@ export function useNotifications() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user, fetchNotifications]);
+  }, [user, fetchNotifications, createTestNotification]);
 
   // Request browser notification permission
   const requestPermission = useCallback(async () => {
@@ -212,10 +165,9 @@ export function useNotifications() {
     notifications,
     unreadCount,
     isLoading,
-    markAsRead,
-    markAllAsRead,
     deleteNotification,
     requestPermission,
     refetch: fetchNotifications,
+    createTestNotification,
   };
 }
