@@ -110,3 +110,34 @@ export interface ExecutiveStats {
   chuvaAcumulada: number;
   dataObservacao: string;
 }
+
+// Tipos para controle de usuários
+export type AppRole = 'admin' | 'gestor';
+
+export interface UserProfile {
+  id: string;
+  user_id: string;
+  email: string;
+  nome: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface UserRole {
+  id: string;
+  user_id: string;
+  role: AppRole;
+  created_at: string;
+}
+
+// Tipo para alertas de mercado
+export type AlertLevel = 'info' | 'warning' | 'critical';
+
+export interface MarketAlert {
+  id: string;
+  title: string;
+  description: string;
+  level: AlertLevel;
+  date: string;
+  category: 'volatilidade' | 'clima' | 'mercado';
+}
