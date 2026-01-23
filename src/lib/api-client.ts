@@ -71,9 +71,67 @@ class APIClient {
     );
   }
 
+  // ============ CSV IMPORT ============
+
+  async importClimateData(file: File): Promise<ImportResult> {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const token = await this.getAuthToken();
+    const headers: HeadersInit = {};
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    const response = await fetch(`${API_BASE_URL}/api/import/climate`, {
+      method: 'POST',
+      headers,
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ detail: 'Unknown error' }));
+      throw new Error(error.detail || `HTTP ${response.status}`);
+    }
+
+    return response.json();
+  }
+
+  async importMarketData(file: File): Promise<ImportResult> {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const token = await this.getAuthToken();
+    const headers: HeadersInit = {};
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    const response = await fetch(`${API_BASE_URL}/api/import/market`, {
+      method: 'POST',
+      headers,
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ detail: 'Unknown error' }));
+      throw new Error(error.detail || `HTTP ${response.status}`);
+    }
+
+    return response.json();
+  }
+
   // TODO: Add more endpoints as migration progresses
-  // async importClimateData(file: File): Promise<ImportResult>
   // async getMarketData(startDate?: string, endDate?: string): Promise<MarketData[]>
+}
+
+export interface ImportResult {
+  success: boolean;
+  records_imported: number;
+  records_failed: number;
+  total_records: number;
+  errors: string[];
+  message: string;
 }
 
 export const apiClient = new APIClient();

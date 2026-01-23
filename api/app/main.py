@@ -6,7 +6,7 @@ Entry point for the AgroData Nexus backend API
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
-from app.routers import notifications
+from app.routers import notifications, import_data, analytics
 import logging
 
 # Configure logging
@@ -33,6 +33,8 @@ app.add_middleware(
 
 # Include routers
 app.include_router(notifications.router)
+app.include_router(import_data.router)
+app.include_router(analytics.router)
 
 # TODO: Add more routers as migration progresses
 # app.include_router(import_data.router)
@@ -58,7 +60,7 @@ async def health_check():
         "database": "connected" if settings.is_configured else "not configured",
         "endpoints": {
             "notifications": "✅ migrated",
-            "import": "⏳ pending",
+            "import": "✅ migrated",
             "analytics": "⏳ pending"
         }
     }

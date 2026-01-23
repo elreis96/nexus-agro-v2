@@ -99,3 +99,26 @@ async def get_optional_user(
         return None
     
     return await get_current_user(credentials)
+
+
+async def require_admin(
+    current_user: AuthUser = Depends(get_current_user)
+) -> AuthUser:
+    """
+    Dependency to require admin role
+    
+    Checks if user has admin role in user_metadata
+    Raises 403 if not admin
+    """
+    # TODO: Implement proper role checking
+    # For now, all authenticated users can import
+    # In production, check user_metadata.role or a roles table
+    
+    # Example implementation:
+    # if not current_user.role or current_user.role != 'admin':
+    #     raise HTTPException(
+    #         status_code=status.HTTP_403_FORBIDDEN,
+    #         detail="Admin access required"
+    #     )
+    
+    return current_user

@@ -9,6 +9,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { apiClient } from "@/lib/api-client";
 import {
   Upload,
   FileSpreadsheet,
@@ -21,6 +22,9 @@ import { format, parse, isValid } from "date-fns";
 interface CSVImportProps {
   type: "mercado" | "clima";
 }
+
+// Feature flag: Use FastAPI backend or Supabase direct
+const USE_FASTAPI = import.meta.env.VITE_USE_FASTAPI === "true";
 
 export function CSVImport({ type }: CSVImportProps) {
   const [isUploading, setIsUploading] = useState(false);
@@ -167,6 +171,30 @@ export function CSVImport({ type }: CSVImportProps) {
     setResult(null);
 
     try {
+      // NEW: Use FastAPI backend if feature flag is enabled
+      if (USE_FASTAPI) {
+        const result =
+          type === "clima"
+            ? await apiClient.importClimateData(file)
+            : await apiClient.importMarketData(file);
+
+        setResult({
+          success: result.records_imported,
+          errors: result.records_failed,
+        });
+
+        toast({
+          title: result.success
+            ? "Importação concluída"
+            : "Importação com erros",
+          description: result.message,
+          variant: result.success ? "default" : "destructive",
+        });
+
+        return;
+      }
+
+      // LEGACY: Supabase direct processing (fallback)
       const text = await file.text();
       const rows = parseCSV(text);
 

@@ -22,12 +22,12 @@ class NotificationService:
         Get notifications for a specific user
         Includes both user-specific and broadcast (null user_id) notifications
         """
-        response = self.supabase.from('notifications')\
-            .select('*')\
-            .or_(f'user_id.eq.{user_id},user_id.is.null')\
-            .order('created_at', desc=True)\
-            .limit(limit)\
-            .execute()
+        response = (self.supabase.from('notifications')
+            .select('*')
+            .or_(f'user_id.eq.{user_id},user_id.is.null')
+            .order('created_at', desc=True)
+            .limit(limit)
+            .execute())
         
         if response.data is None:
             return []
@@ -44,10 +44,10 @@ class NotificationService:
         Only allows deletion if notification belongs to user
         """
         # First check if notification exists and belongs to user
-        check_response = self.supabase.from('notifications')\
-            .select('id, user_id')\
-            .eq('id', notification_id)\
-            .execute()
+        check_response = (self.supabase.from('notifications')
+            .select('id, user_id')
+            .eq('id', notification_id)
+            .execute())
         
         if not check_response.data:
             return False
@@ -61,10 +61,10 @@ class NotificationService:
             return False
         
         # Delete notification
-        delete_response = self.supabase.from('notifications')\
-            .delete()\
-            .eq('id', notification_id)\
-            .execute()
+        delete_response = (self.supabase.from('notifications')
+            .delete()
+            .eq('id', notification_id)
+            .execute())
         
         return True
     
@@ -84,9 +84,9 @@ class NotificationService:
             'user_id': user_id
         }
         
-        response = self.supabase.from('notifications')\
-            .insert(data)\
-            .execute()
+        response = (self.supabase.from('notifications')
+            .insert(data)
+            .execute())
         
         if not response.data:
             raise ValueError("Failed to create notification")
