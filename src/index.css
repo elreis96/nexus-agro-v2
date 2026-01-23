@@ -258,12 +258,7 @@
 
   /* IA Strategist panel */
   .strategist-panel {
-    @apply border-l border-border/50;
-    background: linear-gradient(180deg, 
-      hsl(220, 20%, 9%) 0%, 
-      hsl(220, 20%, 7%) 50%,
-      hsl(220, 20%, 6%) 100%
-    );
+    @apply border-l border-border/50 bg-card/50 backdrop-blur-sm;
   }
 
   .strategist-recommendation {
