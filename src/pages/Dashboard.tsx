@@ -1,13 +1,17 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Logo } from '@/components/Logo';
 import { ExecutiveCard } from '@/components/ExecutiveCard';
 import { PeriodSelector } from '@/components/PeriodSelector';
 import { IAStrategistPanel } from '@/components/IAStrategistPanel';
+import { MarketAlerts } from '@/components/MarketAlerts';
 import { ClimateLagChart } from '@/components/charts/ClimateLagChart';
 import { VolatilityBoxplot } from '@/components/charts/VolatilityBoxplot';
 import { CorrelationScatter } from '@/components/charts/CorrelationScatter';
 import { useExecutiveStats, useVolatilidadeMensal, useCorrelacaoDolarJbs, useLagChuva60dBoi } from '@/hooks/useMarketData';
-import { DollarSign, TrendingUp, Beef, CloudRain } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
+import { Button } from '@/components/ui/button';
+import { DollarSign, TrendingUp, Beef, CloudRain, LogOut, Shield, User } from 'lucide-react';
 import type { PeriodFilter, DateRange } from '@/lib/types';
 
 export default function Dashboard() {
@@ -18,6 +22,14 @@ export default function Dashboard() {
   const { data: volatilidade, isLoading: volLoading } = useVolatilidadeMensal(period, customRange);
   const { data: correlacao, isLoading: corrLoading } = useCorrelacaoDolarJbs(period, customRange);
   const { data: lagChuva, isLoading: lagLoading } = useLagChuva60dBoi(period, customRange);
+  
+  const { profile, isAdmin, signOut } = useAuth();
+  const navigate = useNavigate();
+  
+  const handleSignOut = async () => {
+    await signOut();
+    navigate('/auth');
+  };
   
   return (
     <div className="min-h-screen bg-background flex">
@@ -30,6 +42,35 @@ export default function Dashboard() {
             <div className="flex items-center gap-4">
               <span className="text-sm text-muted-foreground">R$ 800M sob gestão</span>
               <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+              
+              {/* User menu */}
+              <div className="flex items-center gap-2 ml-4 pl-4 border-l border-border/50">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <User className="h-4 w-4" />
+                  <span className="hidden sm:inline">{profile?.nome || profile?.email}</span>
+                </div>
+                
+                {isAdmin && (
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => navigate('/admin')}
+                    className="gap-1"
+                  >
+                    <Shield className="h-3 w-3" />
+                    <span className="hidden sm:inline">Admin</span>
+                  </Button>
+                )}
+                
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  onClick={handleSignOut}
+                  title="Sair"
+                >
+                  <LogOut className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
           </div>
         </header>
@@ -81,6 +122,11 @@ export default function Dashboard() {
                 format="mm"
               />
             </div>
+          </section>
+          
+          {/* Market Alerts */}
+          <section className="mb-8 animate-fade-in">
+            <MarketAlerts />
           </section>
           
           {/* Climate Thesis */}
