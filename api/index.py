@@ -1,4 +1,4 @@
 from api.main import app
 
 # Vercel serverless function handler
-handler = app
+# This file is required for Vercel to detect and deploy FastAPI
