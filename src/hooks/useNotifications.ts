@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { apiClient } from '@/lib/api-client';
 
 export interface Notification {
   id: number;
@@ -9,6 +10,9 @@ export interface Notification {
   body: string;
   created_at: string;
 }
+
+// Feature flag: Use FastAPI backend or Supabase direct
+const USE_FASTAPI = import.meta.env.VITE_USE_FASTAPI === 'true';
 
 export function useNotifications() {
   const { user } = useAuth();
@@ -25,17 +29,26 @@ export function useNotifications() {
     }
 
     try {
-      const { data, error } = await supabase
-        .from('notifications')
-        .select('*')
-        .or(`user_id.eq.${user.id},user_id.is.null`)
-        .order('created_at', { ascending: false })
-        .limit(50);
+      let data: Notification[];
 
-      if (error) throw error;
+      if (USE_FASTAPI) {
+        // NEW: Use FastAPI backend
+        data = await apiClient.getNotifications(50);
+      } else {
+        // LEGACY: Use Supabase direct (fallback)
+        const { data: supabaseData, error } = await supabase
+          .from('notifications')
+          .select('*')
+          .or(`user_id.eq.${user.id},user_id.is.null`)
+          .order('created_at', { ascending: false })
+          .limit(50);
 
-      setNotifications((data as Notification[]) || []);
-      setUnreadCount((data as Notification[])?.length || 0);
+        if (error) throw error;
+        data = (supabaseData as Notification[]) || [];
+      }
+
+      setNotifications(data);
+      setUnreadCount(data.length);
     } catch (error) {
       console.error('Error fetching notifications:', error);
     } finally {
@@ -48,13 +61,19 @@ export function useNotifications() {
     if (!user) return;
 
     try {
-      const { error } = await supabase
-        .from('notifications')
-        .delete()
-        .eq('id', notificationId)
-        .eq('user_id', user.id);
+      if (USE_FASTAPI) {
+        // NEW: Use FastAPI backend
+        await apiClient.deleteNotification(notificationId);
+      } else {
+        // LEGACY: Use Supabase direct (fallback)
+        const { error } = await supabase
+          .from('notifications')
+          .delete()
+          .eq('id', notificationId)
+          .eq('user_id', user.id);
 
-      if (error) throw error;
+        if (error) throw error;
+      }
 
       setNotifications(prev => prev.filter(n => n.id !== notificationId));
       setUnreadCount(prev => Math.max(0, prev - 1));

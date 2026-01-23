@@ -11,9 +11,12 @@ import requests
 from datetime import datetime, timedelta
 from supabase import create_client, Client
 import os
+from pathlib import Path
 from dotenv import load_dotenv
 
-load_dotenv()
+# Load .env from parent directory (project root)
+env_path = Path(__file__).parent.parent / '.env'
+load_dotenv(dotenv_path=env_path)
 
 app = FastAPI(
     title="AgroData Nexus API",
