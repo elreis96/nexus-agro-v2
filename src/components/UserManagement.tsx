@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useAuditLog } from '@/hooks/useAuditLog';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -23,6 +24,7 @@ export function UserManagement() {
   const [isLoading, setIsLoading] = useState(true);
   const [updatingUserId, setUpdatingUserId] = useState<string | null>(null);
   const { toast } = useToast();
+  const { logAction } = useAuditLog();
 
   const fetchUsers = async () => {
     try {
@@ -67,6 +69,9 @@ export function UserManagement() {
   }, []);
 
   const handleRoleChange = async (userId: string, newRole: AppRole) => {
+    const user = users.find(u => u.user_id === userId);
+    const oldRole = user?.role;
+    
     setUpdatingUserId(userId);
     
     try {
@@ -89,10 +94,19 @@ export function UserManagement() {
         // Insert new role
         const { error } = await supabase
           .from('user_roles')
-          .insert({ user_id: userId, role: newRole });
+          .insert([{ user_id: userId, role: newRole }]);
         
         if (error) throw error;
       }
+
+      // Log the action
+      await logAction({
+        action: 'role_change',
+        target_type: 'user_role',
+        target_id: userId,
+        old_value: { role: oldRole, email: user?.email },
+        new_value: { role: newRole, email: user?.email }
+      });
 
       // Update local state
       setUsers(prev => prev.map(u => 
