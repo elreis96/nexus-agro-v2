@@ -7,7 +7,11 @@
 
 import { supabase } from '@/integrations/supabase/client';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+// Auto-detect API URL: use env var if set, otherwise use current origin (for Vercel)
+const API_BASE_URL = import.meta.env.VITE_API_URL || 
+  (typeof window !== 'undefined' && window.location.origin.includes('vercel.app') 
+    ? window.location.origin 
+    : 'http://localhost:8000');
 
 export interface Notification {
   id: number;
