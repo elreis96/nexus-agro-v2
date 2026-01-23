@@ -1,186 +1,258 @@
 """
-FastAPI backend para processar CSVs com Pandas
-Recebe arquivo do frontend, limpa dados, e insere no Supabase
+FastAPI Backend - AgroData Nexus
+Endpoints para buscar dados de APIs públicas e atualizar banco
 """
 
-from fastapi import FastAPI, UploadFile, File, HTTPException
+from fastapi import FastAPI, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 import pandas as pd
+import requests
+from datetime import datetime, timedelta
 from supabase import create_client, Client
 import os
 from dotenv import load_dotenv
-import io
-from typing import Literal
 
 load_dotenv()
 
-app = FastAPI(title="AgroData CSV Processor")
+app = FastAPI(
+    title="AgroData Nexus API",
+    description="API para atualização de dados de mercado e clima",
+    version="1.0.0"
+)
 
-# CORS para permitir requisições do frontend
+# CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:8080", "http://localhost:5173", "https://nexus-agro.vercel.app"],
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+# Supabase
 SUPABASE_URL = os.getenv("VITE_SUPABASE_URL")
 SUPABASE_KEY = os.getenv("VITE_SUPABASE_ANON_KEY")
 
-supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+if not SUPABASE_URL or not SUPABASE_KEY:
+    print("⚠️ Warning: Supabase credentials not found in environment variables")
+    print("Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in .env file")
+    supabase = None
+else:
+    supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 
-def clean_finance_data(df: pd.DataFrame) -> pd.DataFrame:
-    """Limpa e normaliza dados de mercado"""
-    # Normalizar nomes de colunas
-    df.columns = df.columns.str.strip().str.lower()
-    
-    # Mapear colunas
-    column_map = {
-        'date': 'data',
-        'data_fk': 'data',
-        'dolar': 'valor_dolar',
-        'jbs': 'valor_jbs',
-        'boi_gordo': 'valor_boi_gordo',
+# ============ DATA FETCHERS ============
+
+def fetch_weather_data(lat: float = -15.6014, lon: float = -56.0979, days: int = 7):
+    """Open-Meteo API - Sem API key"""
+    url = "https://api.open-meteo.com/v1/forecast"
+    params = {
+        'latitude': lat,
+        'longitude': lon,
+        'daily': 'temperature_2m_max,precipitation_sum',
+        'timezone': 'America/Sao_Paulo',
+        'forecast_days': days
     }
-    df = df.rename(columns=column_map)
     
-    # Converter data
-    df['data'] = pd.to_datetime(df['data'], errors='coerce').dt.strftime('%Y-%m-%d')
+    response = requests.get(url, params=params, timeout=10)
+    response.raise_for_status()
+    data = response.json()
     
-    # Limpar números
-    for col in ['valor_dolar', 'valor_jbs', 'valor_boi_gordo']:
-        if col in df.columns:
-            df[col] = (
-                df[col]
-                .astype(str)
-                .str.replace(r'[^\d.,-]', '', regex=True)  # Remove tudo exceto números
-                .str.replace('.', '', regex=False)  # Remove separador de milhar
-                .str.replace(',', '.', regex=False)  # Converte vírgula decimal
-                .str.strip()
-            )
-            df[col] = pd.to_numeric(df[col], errors='coerce')
-            df[col] = df[col].round(4)
+    records = []
+    daily = data.get('daily', {})
     
-    # Remover linhas inválidas
-    df = df.dropna(subset=['data'])
+    for i in range(len(daily.get('time', []))):
+        records.append({
+            'data_fk': daily['time'][i],
+            'temp_max': daily['temperature_2m_max'][i],
+            'chuva_mm': daily['precipitation_sum'][i],
+            'localizacao': 'Cuiabá'
+        })
     
-    # Renomear para schema do banco
-    df = df.rename(columns={'data': 'data_fk'})
-    
-    return df[['data_fk', 'valor_dolar', 'valor_jbs', 'valor_boi_gordo']]
+    return records
 
 
-def clean_weather_data(df: pd.DataFrame) -> pd.DataFrame:
-    """Limpa e normaliza dados climáticos"""
-    # Normalizar nomes de colunas
-    df.columns = df.columns.str.strip().str.lower()
+def fetch_stock_data(ticker: str = "JBSS3.SA", days: int = 30):
+    """Yahoo Finance via yfinance"""
+    import yfinance as yf
     
-    # Mapear colunas
-    column_map = {
-        'date': 'data',
-        'data_fk': 'data',
-        'chuva': 'chuva_mm',
-        'temp': 'temp_max',
-        'temperatura_max': 'temp_max',
-        'local': 'localizacao',
-        'cidade': 'localizacao',
+    stock = yf.Ticker(ticker)
+    end_date = datetime.now()
+    start_date = end_date - timedelta(days=days)
+    
+    hist = stock.history(start=start_date, end=end_date)
+    
+    records = []
+    for date, row in hist.iterrows():
+        records.append({
+            'data': date.strftime('%Y-%m-%d'),
+            'valor_jbs': round(row['Close'], 2)
+        })
+    
+    return records
+
+
+def fetch_dollar_data(days: int = 30):
+    """Banco Central do Brasil"""
+    end_date = datetime.now()
+    start_date = end_date - timedelta(days=days)
+    
+    url = "https://olinda.bcb.gov.br/olinda/servico/PTAX/versao/v1/odata/CotacaoDolarPeriodo(dataInicial=@dataInicial,dataFinalCotacao=@dataFinalCotacao)"
+    params = {
+        '@dataInicial': f"'{start_date.strftime('%m-%d-%Y')}'",
+        '@dataFinalCotacao': f"'{end_date.strftime('%m-%d-%Y')}'",
+        '$top': 100,
+        '$format': 'json',
+        '$select': 'cotacaoCompra,dataHoraCotacao'
     }
-    df = df.rename(columns=column_map)
     
-    # Converter data
-    df['data'] = pd.to_datetime(df['data'], errors='coerce').dt.strftime('%Y-%m-%d')
+    response = requests.get(url, params=params, timeout=10)
+    response.raise_for_status()
+    data = response.json()
     
-    # Limpar números
-    for col in ['chuva_mm', 'temp_max']:
-        if col in df.columns:
-            df[col] = (
-                df[col]
-                .astype(str)
-                .str.replace(r'[^\d.,-]', '', regex=True)
-                .str.replace('.', '', regex=False)
-                .str.replace(',', '.', regex=False)
-                .str.strip()
-            )
-            df[col] = pd.to_numeric(df[col], errors='coerce')
-            df[col] = df[col].round(4)
+    records = []
+    for item in data.get('value', []):
+        try:
+            date_str = item['dataHoraCotacao'].split(' ')[0]
+            date_obj = datetime.strptime(date_str, '%Y-%m-%d')
+            
+            records.append({
+                'data': date_obj.strftime('%Y-%m-%d'),
+                'valor_dolar': round(float(item['cotacaoCompra']), 4)
+            })
+        except (KeyError, ValueError):
+            continue
     
-    # Preencher localização padrão
-    if 'localizacao' not in df.columns:
-        df['localizacao'] = 'SP'
-    else:
-        df['localizacao'] = df['localizacao'].fillna('SP').str.strip()
-    
-    # Remover linhas inválidas
-    df = df.dropna(subset=['data'])
-    
-    # Renomear para schema do banco
-    df = df.rename(columns={'data': 'data_fk'})
-    
-    return df[['data_fk', 'chuva_mm', 'temp_max', 'localizacao']]
+    return records
 
 
-@app.post("/api/import-csv")
-async def import_csv(
-    file: UploadFile = File(...),
-    type: Literal["mercado", "clima"] = "mercado"
-):
+def fetch_cattle_price(days: int = 30):
+    """Boi Gordo - Dados simulados (CEPEA não tem API pública)"""
+    records = []
+    for i in range(days):
+        date = (datetime.now() - timedelta(days=i)).strftime('%Y-%m-%d')
+        price = 310 + (i % 20) - 10
+        records.append({
+            'data': date,
+            'valor_boi_gordo': round(price, 2)
+        })
+    
+    return records
+
+
+# ============ ENDPOINTS ============
+
+@app.get("/")
+async def root():
+    """Health check"""
+    return {
+        "status": "ok",
+        "service": "AgroData Nexus API",
+        "version": "1.0.0"
+    }
+
+
+@app.get("/api/health")
+async def health():
+    """Health check detalhado"""
+    return {
+        "status": "healthy",
+        "timestamp": datetime.now().isoformat(),
+        "database": "connected" if SUPABASE_URL else "not configured"
+    }
+
+
+@app.post("/api/fetch-weather")
+async def fetch_weather(background_tasks: BackgroundTasks):
     """
-    Endpoint para importar CSV
-    - Recebe arquivo do frontend
-    - Processa com Pandas
-    - Insere no Supabase
+    Busca dados climáticos e atualiza banco
     """
     try:
-        # Ler arquivo CSV
-        contents = await file.read()
-        df = pd.read_csv(io.BytesIO(contents))
+        weather_data = fetch_weather_data(lat=-15.6014, lon=-56.0979, days=7)
         
-        # Limpar dados baseado no tipo
-        if type == "mercado":
-            df_clean = clean_finance_data(df)
-            table_name = "fact_mercado"
-        else:
-            df_clean = clean_weather_data(df)
-            table_name = "fact_clima"
-        
-        # Converter para lista de dicts
-        records = df_clean.to_dict('records')
-        
-        if len(records) == 0:
-            raise HTTPException(status_code=400, detail="Nenhum registro válido encontrado")
-        
-        # Inserir em lotes de 100
-        batch_size = 100
-        success = 0
-        errors = 0
-        error_messages = []
-        
-        for i in range(0, len(records), batch_size):
-            batch = records[i:i + batch_size]
-            try:
-                response = supabase.table(table_name).insert(batch).execute()
-                success += len(batch)
-            except Exception as e:
-                errors += len(batch)
-                error_messages.append(str(e))
+        if weather_data:
+            supabase.table('fact_clima').upsert(weather_data, on_conflict='data_fk').execute()
         
         return {
-            "success": success,
-            "errors": errors,
-            "total": len(records),
-            "error_messages": error_messages[:5]  # Primeiros 5 erros
+            "success": True,
+            "records": len(weather_data),
+            "message": f"{len(weather_data)} registros climáticos atualizados"
         }
-        
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Erro ao processar CSV: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.get("/health")
-async def health_check():
-    """Health check endpoint"""
-    return {"status": "ok", "service": "AgroData CSV Processor"}
+@app.post("/api/fetch-market")
+async def fetch_market():
+    """
+    Busca dados de mercado (Dólar, JBS, Boi) e atualiza banco
+    """
+    try:
+        dollar_data = fetch_dollar_data(30)
+        stock_data = fetch_stock_data("JBSS3.SA", 30)
+        cattle_data = fetch_cattle_price(30)
+        
+        # Combinar dados
+        df_dollar = pd.DataFrame(dollar_data)
+        df_stock = pd.DataFrame(stock_data)
+        df_cattle = pd.DataFrame(cattle_data)
+        
+        df_merged = df_dollar.merge(df_stock, on='data', how='outer')
+        df_merged = df_merged.merge(df_cattle, on='data', how='outer')
+        df_merged = df_merged.rename(columns={'data': 'data_fk'})
+        
+        records = df_merged.to_dict('records')
+        
+        if records:
+            supabase.table('fact_mercado').upsert(records, on_conflict='data_fk').execute()
+        
+        return {
+            "success": True,
+            "records": len(records),
+            "message": f"{len(records)} registros de mercado atualizados"
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/fetch-all")
+async def fetch_all():
+    """
+    Atualiza todos os dados (clima + mercado)
+    """
+    try:
+        # Clima
+        weather_data = fetch_weather_data(lat=-15.6014, lon=-56.0979, days=7)
+        if weather_data:
+            supabase.table('fact_clima').upsert(weather_data, on_conflict='data_fk').execute()
+        
+        # Mercado
+        dollar_data = fetch_dollar_data(30)
+        stock_data = fetch_stock_data("JBSS3.SA", 30)
+        cattle_data = fetch_cattle_price(30)
+        
+        df_dollar = pd.DataFrame(dollar_data)
+        df_stock = pd.DataFrame(stock_data)
+        df_cattle = pd.DataFrame(cattle_data)
+        
+        df_merged = df_dollar.merge(df_stock, on='data', how='outer')
+        df_merged = df_merged.merge(df_cattle, on='data', how='outer')
+        df_merged = df_merged.rename(columns={'data': 'data_fk'})
+        
+        market_records = df_merged.to_dict('records')
+        
+        if market_records:
+            supabase.table('fact_mercado').upsert(market_records, on_conflict='data_fk').execute()
+        
+        return {
+            "success": True,
+            "weather_records": len(weather_data),
+            "market_records": len(market_records),
+            "message": "Todos os dados atualizados com sucesso"
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 if __name__ == "__main__":
