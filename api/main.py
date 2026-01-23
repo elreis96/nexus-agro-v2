@@ -195,3 +195,126 @@ def import_market(request: Request, file: UploadFile = File(...), authorization:
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/market-data")
+@limiter.limit("60/minute")
+def get_market_data(
+    request: Request,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    authorization: Optional[str] = Header(None)
+):
+    user = verify_token(authorization)
+    if not supabase:
+        raise HTTPException(status_code=500, detail="Database not configured")
+    
+    query = supabase.table('fact_mercado').select('*').order('data_fk', desc=True)
+    
+    if start_date:
+        query = query.gte('data_fk', start_date)
+    if end_date:
+        query = query.lte('data_fk', end_date)
+    
+    response = query.limit(1000).execute()
+    return response.data or []
+
+@app.get("/api/climate-data")
+@limiter.limit("60/minute")
+def get_climate_data(
+    request: Request,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    location: Optional[str] = None,
+    authorization: Optional[str] = Header(None)
+):
+    user = verify_token(authorization)
+    if not supabase:
+        raise HTTPException(status_code=500, detail="Database not configured")
+    
+    query = supabase.table('fact_clima').select('*').order('data_fk', desc=True)
+    
+    if start_date:
+        query = query.gte('data_fk', start_date)
+    if end_date:
+        query = query.lte('data_fk', end_date)
+    if location:
+        query = query.eq('localizacao', location)
+    
+    response = query.limit(1000).execute()
+    return response.data or []
+
+@app.get("/api/analytics/correlation")
+@limiter.limit("60/minute")
+def get_correlation_analysis(
+    request: Request,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    authorization: Optional[str] = Header(None)
+):
+    user = verify_token(authorization)
+    if not supabase:
+        raise HTTPException(status_code=500, detail="Database not configured")
+    
+    # Query market data for correlation
+    query = supabase.table('fact_mercado').select('data_fk, valor_dolar, valor_jbs, valor_boi_gordo').order('data_fk')
+    
+    if start_date:
+        query = query.gte('data_fk', start_date)
+    if end_date:
+        query = query.lte('data_fk', end_date)
+    
+    response = query.limit(1000).execute()
+    data = response.data or []
+    
+    if len(data) < 2:
+        return {"correlation": {}, "message": "Insufficient data for correlation analysis"}
+    
+    # Calculate correlation using pandas
+    df = pd.DataFrame(data)
+    numeric_cols = ['valor_dolar', 'valor_jbs', 'valor_boi_gordo']
+    correlation_matrix = df[numeric_cols].corr().to_dict()
+    
+    return {
+        "correlation_matrix": correlation_matrix,
+        "data_points": len(data),
+        "period": {"start": data[0]['data_fk'], "end": data[-1]['data_fk']}
+    }
+
+@app.get("/api/analytics/volatility")
+@limiter.limit("60/minute")
+def get_volatility_analysis(
+    request: Request,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    authorization: Optional[str] = Header(None)
+):
+    user = verify_token(authorization)
+    if not supabase:
+        raise HTTPException(status_code=500, detail="Database not configured")
+    
+    # Query market data for volatility
+    query = supabase.table('fact_mercado').select('data_fk, valor_dolar, valor_jbs, valor_boi_gordo').order('data_fk')
+    
+    if start_date:
+        query = query.gte('data_fk', start_date)
+    if end_date:
+        query = query.lte('data_fk', end_date)
+    
+    response = query.limit(1000).execute()
+    data = response.data or []
+    
+    if len(data) < 2:
+        return {"volatility": {}, "message": "Insufficient data for volatility analysis"}
+    
+    # Calculate volatility (standard deviation) using pandas
+    df = pd.DataFrame(data)
+    numeric_cols = ['valor_dolar', 'valor_jbs', 'valor_boi_gordo']
+    volatility = df[numeric_cols].std().to_dict()
+    mean_values = df[numeric_cols].mean().to_dict()
+    
+    return {
+        "volatility": volatility,
+        "mean": mean_values,
+        "data_points": len(data),
+        "period": {"start": data[0]['data_fk'], "end": data[-1]['data_fk']}
+    }
