@@ -34,8 +34,8 @@ export function useNotifications() {
 
       if (error) throw error;
 
-      setNotifications(data || []);
-      setUnreadCount(data?.length || 0);
+      setNotifications((data as Notification[]) || []);
+      setUnreadCount((data as Notification[])?.length || 0);
     } catch (error) {
       console.error('Error fetching notifications:', error);
     } finally {

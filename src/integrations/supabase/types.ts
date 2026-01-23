@@ -140,34 +140,25 @@ export type Database = {
       }
       notifications: {
         Row: {
-          category: string
-          created_at: string
-          description: string
-          id: string
-          is_read: boolean
-          level: string
+          id: number
+          user_id: string | null
           title: string
-          user_id: string
+          body: string
+          created_at: string
         }
         Insert: {
-          category: string
-          created_at?: string
-          description: string
-          id?: string
-          is_read?: boolean
-          level: string
+          id?: number
+          user_id?: string | null
           title: string
-          user_id: string
+          body: string
+          created_at?: string
         }
         Update: {
-          category?: string
-          created_at?: string
-          description?: string
-          id?: string
-          is_read?: boolean
-          level?: string
+          id?: number
+          user_id?: string | null
           title?: string
-          user_id?: string
+          body?: string
+          created_at?: string
         }
         Relationships: []
       }
