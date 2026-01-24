@@ -344,9 +344,6 @@ def get_volatility_analysis(
         })
         
     return result
-        "data_points": len(data),
-        "period": {"start": data[0]['data_fk'], "end": data[-1]['data_fk']}
-    }
 
 @app.get("/api/analytics/lag")
 @limiter.limit("60/minute")
