@@ -17,9 +17,13 @@ from apscheduler.triggers.cron import CronTrigger
 import pytz
 from pydantic import BaseModel
 
-# Load environment variables
+# Load environment variables (only in local development)
 env_path = Path(__file__).parent.parent / '.env'
-load_dotenv(dotenv_path=env_path)
+if env_path.exists():
+    load_dotenv(dotenv_path=env_path)
+else:
+    # In production (Vercel), environment variables are injected automatically
+    load_dotenv()
 
 # Supabase client
 SUPABASE_URL = os.getenv("VITE_SUPABASE_URL")

@@ -1,4 +1,5 @@
 from main import app
 
 # Vercel serverless function handler
-# This file is required for Vercel to detect and deploy FastAPI
+# Export app for Vercel to use as the ASGI application
+handler = app
