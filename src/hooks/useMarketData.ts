@@ -189,8 +189,7 @@ export function useExecutiveStats() {
 }
 
 export function useCurrentMarketData() {
-    // Mantendo original...
-    return useQuery({
+    const query = useQuery({
         queryKey: ['current-market-data'],
         queryFn: async (): Promise<CurrentMarketData> => {
           const { data: mercadoData, error: mercadoError } = await supabase
@@ -217,6 +216,13 @@ export function useCurrentMarketData() {
         },
         refetchInterval: 60000,
       });
+
+    return {
+      data: query.data,
+      isLoading: query.isLoading,
+      refetch: query.refetch,
+      dataUpdatedAt: query.dataUpdatedAt
+    };
 }
 
 // Hook de tabela raw
