@@ -7,11 +7,17 @@
 
 import { supabase } from '@/integrations/supabase/client';
 
-// Auto-detect API URL: use env var if set, otherwise use current origin (for Vercel)
+// Auto-detect API URL
+// In Vercel, the backend is serverless functions under /api, so we use the same origin
+const isVercel = typeof window !== 'undefined' && window.location.hostname.includes('vercel.app');
 const API_BASE_URL = import.meta.env.VITE_API_URL || 
-  (typeof window !== 'undefined' && window.location.origin.includes('vercel.app') 
-    ? window.location.origin 
-    : 'http://localhost:8000');
+  (isVercel ? window.location.origin : 'http://localhost:8000');
+
+console.log('🌐 API Client Initialized:', {
+  API_BASE_URL,
+  isVercel,
+  env: import.meta.env.VITE_API_URL
+});
 
 export interface Notification {
   id: number;
