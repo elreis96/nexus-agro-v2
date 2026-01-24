@@ -30,8 +30,17 @@ SUPABASE_URL = os.getenv("VITE_SUPABASE_URL")
 SUPABASE_KEY = os.getenv("VITE_SUPABASE_ANON_KEY")
 SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY") or os.getenv("SUPABASE_SERVICE_KEY")
 
-supabase = create_client(SUPABASE_URL, SUPABASE_KEY) if SUPABASE_URL and SUPABASE_KEY else None
-admin_supabase = create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY) if SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY else None
+print(f"🔧 [Config] SUPABASE_URL: {'✓ set' if SUPABASE_URL else '✗ missing'}")
+print(f"🔧 [Config] SUPABASE_KEY: {'✓ set' if SUPABASE_KEY else '✗ missing'}")
+
+try:
+    supabase = create_client(SUPABASE_URL, SUPABASE_KEY) if SUPABASE_URL and SUPABASE_KEY else None
+    admin_supabase = create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY) if SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY else None
+    print(f"✓ Supabase client initialized")
+except Exception as e:
+    print(f"✗ Supabase client error: {e}")
+    supabase = None
+    admin_supabase = None
 
 # Rate limiter
 limiter = Limiter(key_func=get_remote_address)
@@ -318,6 +327,16 @@ async def _on_shutdown():
 @app.get("/")
 def root():
     return {"status": "ok", "service": "AgroData Nexus API", "version": "1.0.0"}
+
+@app.get("/api/health")
+def health_check():
+    """Health check endpoint - no auth required"""
+    return {
+        "status": "healthy",
+        "timestamp": dt.datetime.now(SAO_PAULO_TZ).isoformat(),
+        "supabase": "connected" if supabase else "disconnected",
+        "environment": "serverless" if os.getenv("VERCEL") == "1" else "local"
+    }
 
 @app.get("/health")
 def health():
