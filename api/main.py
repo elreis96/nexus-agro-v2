@@ -129,7 +129,10 @@ def import_climate(request: Request, file: UploadFile = File(...), authorization
         df['data_fk'] = df['data'].apply(clean_date)
         df['temp_max'] = df.get('temp_max', pd.Series()).apply(clean_number)
         df['chuva_mm'] = df.get('chuva_mm', pd.Series()).apply(clean_number)
-        df['localizacao'] = df.get('localizacao', 'Cuiabá').fillna('Cuiabá')
+        if 'localizacao' not in df.columns:
+            df['localizacao'] = 'Cuiabá'
+        else:
+            df['localizacao'] = df['localizacao'].fillna('Cuiabá')
         
         df_valid = df[df['data_fk'].notna()].copy()
         records = df_valid[['data_fk', 'temp_max', 'chuva_mm', 'localizacao']].to_dict('records')
@@ -255,7 +258,7 @@ def get_correlation_analysis(
     if not supabase:
         raise HTTPException(status_code=500, detail="Database not configured")
     
-    # Query market data for correlation
+    # Query market data
     query = supabase.table('fact_mercado').select('data_fk, valor_dolar, valor_jbs, valor_boi_gordo').order('data_fk')
     
     if start_date:
@@ -263,22 +266,14 @@ def get_correlation_analysis(
     if end_date:
         query = query.lte('data_fk', end_date)
     
-    response = query.limit(1000).execute()
+    response = query.limit(2000).execute()
     data = response.data or []
     
     if len(data) < 2:
-        return {"correlation": {}, "message": "Insufficient data for correlation analysis"}
+        return [] # Return empty list for charts
     
-    # Calculate correlation using pandas
-    df = pd.DataFrame(data)
-    numeric_cols = ['valor_dolar', 'valor_jbs', 'valor_boi_gordo']
-    correlation_matrix = df[numeric_cols].corr().to_dict()
-    
-    return {
-        "correlation_matrix": correlation_matrix,
-        "data_points": len(data),
-        "period": {"start": data[0]['data_fk'], "end": data[-1]['data_fk']}
-    }
+    # Return raw data for scatter plot
+    return data
 
 @app.get("/api/analytics/volatility")
 @limiter.limit("60/minute")
@@ -292,7 +287,7 @@ def get_volatility_analysis(
     if not supabase:
         raise HTTPException(status_code=500, detail="Database not configured")
     
-    # Query market data for volatility
+    # Query market data
     query = supabase.table('fact_mercado').select('data_fk, valor_dolar, valor_jbs, valor_boi_gordo').order('data_fk')
     
     if start_date:
@@ -300,21 +295,110 @@ def get_volatility_analysis(
     if end_date:
         query = query.lte('data_fk', end_date)
     
-    response = query.limit(1000).execute()
+    response = query.limit(2000).execute()
     data = response.data or []
     
     if len(data) < 2:
-        return {"volatility": {}, "message": "Insufficient data for volatility analysis"}
+        return []
     
-    # Calculate volatility (standard deviation) using pandas
+    # Calculate monthly volatility (boxplots) using pandas
     df = pd.DataFrame(data)
-    numeric_cols = ['valor_dolar', 'valor_jbs', 'valor_boi_gordo']
-    volatility = df[numeric_cols].std().to_dict()
-    mean_values = df[numeric_cols].mean().to_dict()
+    df['data_fk'] = pd.to_datetime(df['data_fk'])
+    df['ano'] = df['data_fk'].dt.year
+    df['mes'] = df['data_fk'].dt.month
     
-    return {
-        "volatility": volatility,
-        "mean": mean_values,
+    monthly = df.groupby(['ano', 'mes'])
+    result = []
+    
+    for (ano, mes), group in monthly:
+        # Calculate stats for boi
+        # Clean data first - remove nulls
+        boi_series = pd.to_numeric(group['valor_boi_gordo'], errors='coerce').dropna()
+        dolar_series = pd.to_numeric(group['valor_dolar'], errors='coerce').dropna()
+        
+        if boi_series.empty or dolar_series.empty:
+            continue
+            
+        boi_stats = boi_series.describe(percentiles=[.25, .5, .75])
+        dolar_stats = dolar_series.describe(percentiles=[.25, .5, .75])
+        
+        result.append({
+            "ano": int(ano),
+            "mes": int(mes),
+            # Boi
+            "min_boi": float(boi_stats['min']),
+            "q1_boi": float(boi_stats['25%']),
+            "mediana_boi": float(boi_stats['50%']),
+            "q3_boi": float(boi_stats['75%']),
+            "max_boi": float(boi_stats['max']),
+            # Dolar
+            "min_dolar": float(dolar_stats['min']),
+            "q1_dolar": float(dolar_stats['25%']),
+            "mediana_dolar": float(dolar_stats['50%']),
+            "q3_dolar": float(dolar_stats['75%']),
+            "max_dolar": float(dolar_stats['max']),
+        })
+        
+    return result
         "data_points": len(data),
         "period": {"start": data[0]['data_fk'], "end": data[-1]['data_fk']}
     }
+
+@app.get("/api/analytics/lag")
+@limiter.limit("60/minute")
+def get_lag_analysis(
+    request: Request,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    lag_days: int = 60,
+    authorization: Optional[str] = Header(None)
+):
+    user = verify_token(authorization)
+    if not supabase:
+        raise HTTPException(status_code=500, detail="Database not configured")
+    
+    # 1. Fetch Climate Data (Chuva)
+    clima_query = supabase.table('fact_clima').select('data_fk, chuva_mm').extension('not.is', 'chuva_mm', 'null')
+    if start_date: clima_query = clima_query.gte('data_fk', start_date)
+    # We need extra data at the end for the lag, but simplifying for now
+    
+    clima_resp = clima_query.order('data_fk').limit(2000).execute()
+    clima_data = pd.DataFrame(clima_resp.data or [])
+    
+    # 2. Fetch Market Data (Boi)
+    mercado_query = supabase.table('fact_mercado').select('data_fk, valor_boi_gordo').extension('not.is', 'valor_boi_gordo', 'null')
+    # Use wider range to catch the lagged prices
+    
+    mercado_resp = mercado_query.order('data_fk').limit(2000).execute()
+    mercado_data = pd.DataFrame(mercado_resp.data or [])
+    
+    if clima_data.empty or mercado_data.empty:
+        return []
+        
+    # 3. Merge and Shift
+    clima_data['data_fk'] = pd.to_datetime(clima_data['data_fk'])
+    mercado_data['data_fk'] = pd.to_datetime(mercado_data['data_fk'])
+    
+    # Create the lagged target date
+    clima_data['target_date'] = clima_data['data_fk'] + pd.Timedelta(days=lag_days)
+    
+    # Merge on target_date == market_date
+    df = pd.merge(
+        clima_data, 
+        mercado_data, 
+        left_on='target_date', 
+        right_on='data_fk', 
+        suffixes=('_clima', '_mercado')
+    )
+    
+    # Format for frontend
+    result = []
+    for _, row in df.iterrows():
+        result.append({
+            "data_chuva": row['data_fk_clima'].strftime('%Y-%m-%d'),
+            "data_preco": row['data_fk_mercado'].strftime('%Y-%m-%d'),
+            "chuva_mm": row['chuva_mm'],
+            "valor_boi_gordo": row['valor_boi_gordo']
+        })
+        
+    return result

@@ -173,6 +173,17 @@ class APIClient {
       `/api/analytics/volatility?${params.toString()}`
     );
   }
+
+  async getLagAnalysis(startDate?: string, endDate?: string, lagDays: number = 60): Promise<any[]> {
+    const params = new URLSearchParams();
+    if (startDate) params.append('start_date', startDate);
+    if (endDate) params.append('end_date', endDate);
+    params.append('lag_days', lagDays.toString());
+
+    return this.request<any[]>(
+      `/api/analytics/lag?${params.toString()}`
+    );
+  }
 }
 
 export interface ImportResult {

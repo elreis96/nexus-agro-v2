@@ -132,28 +132,17 @@ export function useVolatilidadeMensal(period: PeriodFilter, customRange?: DateRa
   const { startDate, endDate } = getDateRange(period, customRange);
   
   return useQuery({
-    queryKey: ['volatilidade-mensal', period, startDate, endDate],
+    queryKey: ['volatilidade-mensal', period, startDate, endDate, USE_FASTAPI],
     queryFn: async (): Promise<ViewVolatilidadeMensal[]> => {
-      // Sempre usa Supabase (view específica)
-      const { data, error } = await supabase
-        .from('view_volatilidade_mensal')
-        .select('*')
-        .order('ano', { ascending: true })
-        .order('mes', { ascending: true });
-      
-      if (error) throw error;
-      
-      const startYear = startDate.getFullYear();
-      const startMonth = startDate.getMonth() + 1;
-      const endYear = endDate.getFullYear();
-      const endMonth = endDate.getMonth() + 1;
-      
-      return (data || []).filter(row => {
-        const rowDate = row.ano * 100 + row.mes;
-        const startDateNum = startYear * 100 + startMonth;
-        const endDateNum = endYear * 100 + endMonth;
-        return rowDate >= startDateNum && rowDate <= endDateNum;
-      });
+      if (USE_FASTAPI) {
+        const data = await apiClient.getVolatilityAnalysis(
+          format(startDate, 'yyyy-MM-dd'),
+          format(endDate, 'yyyy-MM-dd')
+        );
+        // Data already matches the View interface mostly, just ensure types
+        return data as unknown as ViewVolatilidadeMensal[]; // Cast safe due to our backend reshaping
+      }
+      return []; // No views in Supabase, fallback to empty
     },
   });
 }
@@ -165,18 +154,16 @@ export function useCorrelacaoDolarJbs(period: PeriodFilter, customRange?: DateRa
   const { startDate, endDate } = getDateRange(period, customRange);
   
   return useQuery({
-    queryKey: ['correlacao-dolar-jbs', period, startDate, endDate],
+    queryKey: ['correlacao-dolar-jbs', period, startDate, endDate, USE_FASTAPI],
     queryFn: async (): Promise<ViewCorrelacaoDolarJbs[]> => {
-      // Sempre usa Supabase (view específica)
-      const { data, error } = await supabase
-        .from('view_correlacao_dolar_jbs')
-        .select('*')
-        .gte('data_fk', format(startDate, 'yyyy-MM-dd'))
-        .lte('data_fk', format(endDate, 'yyyy-MM-dd'))
-        .order('data_fk', { ascending: true });
-      
-      if (error) throw error;
-      return data || [];
+      if (USE_FASTAPI) {
+        const data = await apiClient.getCorrelationAnalysis(
+          format(startDate, 'yyyy-MM-dd'),
+          format(endDate, 'yyyy-MM-dd')
+        );
+        return data as ViewCorrelacaoDolarJbs[];
+      }
+      return []; 
     },
   });
 }
@@ -188,18 +175,23 @@ export function useLagChuva60dBoi(period: PeriodFilter, customRange?: DateRange)
   const { startDate, endDate } = getDateRange(period, customRange);
   
   return useQuery({
-    queryKey: ['lag-chuva-60d-boi', period, startDate, endDate],
+    queryKey: ['lag-chuva-60d-boi', period, startDate, endDate, USE_FASTAPI],
     queryFn: async (): Promise<ViewLagChuva60dBoi[]> => {
-      // Sempre usa Supabase (view específica)
-      const { data, error } = await supabase
-        .from('view_lag_chuva_60d_boi')
-        .select('*')
-        .gte('data_preco', format(startDate, 'yyyy-MM-dd'))
-        .lte('data_preco', format(endDate, 'yyyy-MM-dd'))
-        .order('data_preco', { ascending: true });
-      
-      if (error) throw error;
-      return data || [];
+      if (USE_FASTAPI) {
+        const data = await apiClient.getLagAnalysis(
+          format(startDate, 'yyyy-MM-dd'),
+          format(endDate, 'yyyy-MM-dd'),
+          60 // 60 days lag
+        );
+        
+        // Map backend response to component expectation
+        return data.map((row: any) => ({
+          data_preco: row.data_preco,
+          valor_boi_gordo: row.valor_boi_gordo,
+          chuva_mm_lag_60d: row.chuva_mm // Remap field name
+        })) as unknown as ViewLagChuva60dBoi[];
+      }
+      return [];
     },
   });
 }
