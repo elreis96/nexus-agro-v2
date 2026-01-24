@@ -284,6 +284,14 @@ def _fetch_market_and_store():
 # --- Scheduler lifecycle ---
 @app.on_event("startup")
 async def _on_startup():
+    # Scheduler doesn't work in serverless (Vercel), only start in local development
+    is_serverless = os.getenv("VERCEL") == "1" or os.getenv("AWS_LAMBDA_FUNCTION_NAME") is not None
+    
+    if is_serverless:
+        print("⚠️ Running in serverless environment - scheduler disabled")
+        print("💡 Use external cron service (Vercel Cron, GitHub Actions) for scheduled tasks")
+        return
+    
     try:
         scheduler = AsyncIOScheduler(timezone=SAO_PAULO_TZ)
         # Weather at 10:00, 13:00, 18:00
