@@ -254,9 +254,8 @@ def get_correlation_analysis(
     end_date: Optional[str] = None,
     authorization: Optional[str] = Header(None)
 ):
+    print(f"📊 [Correlation] Start: {start_date} to {end_date}")
     user = verify_token(authorization)
-    if not supabase:
-        raise HTTPException(status_code=500, detail="Database not configured")
     
     # Query market data
     query = supabase.table('fact_mercado').select('data_fk, valor_dolar, valor_jbs, valor_boi_gordo').order('data_fk')
@@ -266,8 +265,10 @@ def get_correlation_analysis(
     if end_date:
         query = query.lte('data_fk', end_date)
     
+    print("📊 [Correlation] Executing query...")
     response = query.limit(2000).execute()
     data = response.data or []
+    print(f"📊 [Correlation] Query done. Rows: {len(data)}")
     
     if len(data) < 2:
         return [] # Return empty list for charts
@@ -283,6 +284,7 @@ def get_volatility_analysis(
     end_date: Optional[str] = None,
     authorization: Optional[str] = Header(None)
 ):
+    print(f"📉 [Volatility] Start: {start_date} to {end_date}")
     user = verify_token(authorization)
     if not supabase:
         raise HTTPException(status_code=500, detail="Database not configured")
@@ -295,8 +297,10 @@ def get_volatility_analysis(
     if end_date:
         query = query.lte('data_fk', end_date)
     
+    print("📉 [Volatility] Executing query...")
     response = query.limit(2000).execute()
     data = response.data or []
+    print(f"📉 [Volatility] Query done. Rows: {len(data)}")
     
     if len(data) < 2:
         return []
@@ -353,11 +357,13 @@ def get_lag_analysis(
     lag_days: int = 60,
     authorization: Optional[str] = Header(None)
 ):
+    print(f"🌧️ [Lag] Start: {start_date}, Lag: {lag_days}")
     user = verify_token(authorization)
     if not supabase:
         raise HTTPException(status_code=500, detail="Database not configured")
     
     # 1. Fetch Climate Data (Chuva)
+    print("🌧️ [Lag] Querying climate...")
     clima_query = supabase.table('fact_clima').select('data_fk, chuva_mm').extension('not.is', 'chuva_mm', 'null')
     if start_date: clima_query = clima_query.gte('data_fk', start_date)
     # We need extra data at the end for the lag, but simplifying for now
@@ -366,6 +372,7 @@ def get_lag_analysis(
     clima_data = pd.DataFrame(clima_resp.data or [])
     
     # 2. Fetch Market Data (Boi)
+    print("🌧️ [Lag] Querying market...")
     mercado_query = supabase.table('fact_mercado').select('data_fk, valor_boi_gordo').extension('not.is', 'valor_boi_gordo', 'null')
     # Use wider range to catch the lagged prices
     
@@ -373,7 +380,10 @@ def get_lag_analysis(
     mercado_data = pd.DataFrame(mercado_resp.data or [])
     
     if clima_data.empty or mercado_data.empty:
+        print("🌧️ [Lag] No data found.")
         return []
+    
+    print(f"🌧️ [Lag] Processing {len(clima_data)} climate rows and {len(mercado_data)} market rows...")
         
     # 3. Merge and Shift
     clima_data['data_fk'] = pd.to_datetime(clima_data['data_fk'])
