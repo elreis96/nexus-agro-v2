@@ -11,12 +11,10 @@
     {
       "source": "/api/(.*)",
       "destination": "/api/index.py"
-    }
-  ],
-  "routes": [
+    },
     {
-      "src": "/api/(.*)",
-      "dest": "/api/index.py"
+      "source": "/(.*)",
+      "destination": "/index.html"
     }
   ]
 }
