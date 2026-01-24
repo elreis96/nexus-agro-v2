@@ -11,9 +11,7 @@ import { VolatilityBoxplot } from "@/components/charts/VolatilityBoxplot";
 import { CorrelationScatter } from "@/components/charts/CorrelationScatter";
 import {
   useExecutiveStats,
-  useVolatilidadeMensal,
-  useCorrelacaoDolarJbs,
-  useLagChuva60dBoi,
+  useAnalytics, // NEW unified hook
 } from "@/hooks/useMarketData";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -37,18 +35,22 @@ export default function Dashboard() {
   const [customRange, setCustomRange] = useState<DateRange | undefined>();
 
   const { data: stats, isLoading: statsLoading } = useExecutiveStats();
-  const { data: volatilidade, isLoading: volLoading } = useVolatilidadeMensal(
+
+  // Use the new Unified hook to prevent infinite loops
+  const {
+    volatilidade,
+    correlacao,
+    lagChuva,
+    isLoading: analyticsLoading,
+  } = useAnalytics({
     period,
     customRange,
-  );
-  const { data: correlacao, isLoading: corrLoading } = useCorrelacaoDolarJbs(
-    period,
-    customRange,
-  );
-  const { data: lagChuva, isLoading: lagLoading } = useLagChuva60dBoi(
-    period,
-    customRange,
-  );
+  });
+
+  // Alias loading states to match existing variables
+  const volLoading = analyticsLoading;
+  const corrLoading = analyticsLoading;
+  const lagLoading = analyticsLoading;
 
   const { profile, isAdmin, signOut } = useAuth();
   const navigate = useNavigate();

@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { apiClient } from '@/lib/api-client';
+import { createMarketAlertNotifications, detectClimateAlerts } from '@/lib/market-alerts';
 
 export interface Notification {
   id: number;
@@ -124,6 +125,17 @@ export function useNotifications() {
     fetchNotifications();
     createTestNotification();
 
+    // Verificar alertas de mercado e clima a cada 30 minutos
+    const checkAlerts = async () => {
+      await createMarketAlertNotifications(user.id);
+      await detectClimateAlerts(user.id);
+      await fetchNotifications(); // Refresh após criar alertas
+    };
+
+    // Executar imediatamente e depois a cada 30 minutos
+    checkAlerts();
+    const alertInterval = setInterval(checkAlerts, 30 * 60 * 1000);
+
     // Subscribe to new notifications
     const channel = supabase
       .channel(`notifications:${user.id}`)
@@ -167,6 +179,7 @@ export function useNotifications() {
       .subscribe();
 
     return () => {
+      clearInterval(alertInterval);
       supabase.removeChannel(channel);
     };
   }, [user, fetchNotifications, createTestNotification]);

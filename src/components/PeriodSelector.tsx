@@ -30,10 +30,16 @@ export function PeriodSelector({
   const [dateRange, setDateRange] = useState<DateRange | undefined>(customRange);
   
   const handleDateSelect = (range: { from?: Date; to?: Date } | undefined) => {
-    if (range?.from && range?.to) {
-      const newRange = { startDate: range.from, endDate: range.to };
+    if (range?.from) {
+      const newRange = { 
+        startDate: range.from, 
+        endDate: range.to || range.from // Se só selecionou uma data, usar a mesma
+      };
       setDateRange(newRange);
-      onCustomRangeChange?.(newRange);
+      if (range.to) {
+        // Só chama callback quando tiver ambas as datas
+        onCustomRangeChange?.(newRange);
+      }
     }
   };
   

@@ -15,7 +15,7 @@ import { ArrowLeft, User, Mail, Shield, Save, Loader2, Crown, UserCheck } from '
 const nomeSchema = z.string().trim().min(1, 'Nome é obrigatório').max(100, 'Nome muito longo');
 
 export default function Profile() {
-  const { user, profile, role, isLoading: authLoading } = useAuth();
+  const { user, profile, role, isLoading: authLoading, refreshProfile } = useAuth();
   const [nome, setNome] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -55,6 +55,9 @@ export default function Profile() {
         .eq('user_id', user.id);
 
       if (updateError) throw updateError;
+
+      // Refresh profile from context
+      await refreshProfile();
 
       toast({
         title: 'Perfil atualizado!',
@@ -102,10 +105,10 @@ export default function Profile() {
       <main className="container max-w-2xl mx-auto p-6 space-y-6">
         <div className="space-y-2">
           <h1 className="text-2xl font-display font-bold text-gradient-gold">
-            Meu Perfil
+            {profile?.nome || 'Meu Perfil'}
           </h1>
           <p className="text-muted-foreground">
-            Gerencie suas informações pessoais
+            {profile?.nome ? 'Gerencie suas informações pessoais' : 'Complete seu perfil adicionando seu nome'}
           </p>
         </div>
 
@@ -144,7 +147,7 @@ export default function Profile() {
                   <Input
                     id="email"
                     type="email"
-                    value={profile?.email || ''}
+                    value={profile?.email || user?.email || ''}
                     disabled
                     className="pl-10 bg-muted/30"
                   />

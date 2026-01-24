@@ -1,7 +1,5 @@
 import { useState, useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { useAuditLog } from '@/hooks/useAuditLog';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -9,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Users, Crown, UserCheck } from 'lucide-react';
 import type { AppRole } from '@/lib/types';
+import { apiClient } from '@/lib/api-client';
 
 interface UserWithRole {
   id: string;
@@ -24,34 +23,18 @@ export function UserManagement() {
   const [isLoading, setIsLoading] = useState(true);
   const [updatingUserId, setUpdatingUserId] = useState<string | null>(null);
   const { toast } = useToast();
-  const { logAction } = useAuditLog();
 
   const fetchUsers = async () => {
     try {
-      // Fetch profiles (admins can see all)
-      const { data: profiles, error: profilesError } = await supabase
-        .from('profiles')
-        .select('id, user_id, email, nome, created_at');
-
-      if (profilesError) throw profilesError;
-
-      // Fetch roles
-      const { data: roles, error: rolesError } = await supabase
-        .from('user_roles')
-        .select('user_id, role');
-
-      if (rolesError) throw rolesError;
-
-      // Combine data
-      const combined: UserWithRole[] = (profiles || []).map(profile => {
-        const userRole = roles?.find(r => r.user_id === profile.user_id);
-        return {
-          ...profile,
-          role: (userRole?.role as AppRole) || 'gestor'
-        };
-      });
-
-      setUsers(combined);
+      console.log('🔍 Buscando usuários (API admin)...');
+      const data = await apiClient.getAdminUsers();
+      const normalized: UserWithRole[] = data.map(user => ({
+        ...user,
+        id: user.user_id,
+        role: (user.role as AppRole) || 'gestor'
+      }));
+      setUsers(normalized);
+      console.log('✅ Usuários carregados:', normalized.length);
     } catch (error) {
       console.error('Error fetching users:', error);
       toast({
@@ -75,38 +58,7 @@ export function UserManagement() {
     setUpdatingUserId(userId);
     
     try {
-      // Check if role exists
-      const { data: existingRole } = await supabase
-        .from('user_roles')
-        .select('id')
-        .eq('user_id', userId)
-        .maybeSingle();
-
-      if (existingRole) {
-        // Update existing role
-        const { error } = await supabase
-          .from('user_roles')
-          .update({ role: newRole })
-          .eq('user_id', userId);
-        
-        if (error) throw error;
-      } else {
-        // Insert new role
-        const { error } = await supabase
-          .from('user_roles')
-          .insert([{ user_id: userId, role: newRole }]);
-        
-        if (error) throw error;
-      }
-
-      // Log the action
-      await logAction({
-        action: 'role_change',
-        target_type: 'user_role',
-        target_id: userId,
-        old_value: { role: oldRole, email: user?.email },
-        new_value: { role: newRole, email: user?.email }
-      });
+      await apiClient.updateUserRole(userId, newRole);
 
       // Update local state
       setUsers(prev => prev.map(u => 

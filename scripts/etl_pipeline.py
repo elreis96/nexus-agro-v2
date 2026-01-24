@@ -37,8 +37,6 @@ def create_dim_calendario(start_date: str, end_date: str):
         'data_pk': date_range.strftime('%Y-%m-%d'),
         'ano': date_range.year,
         'mes': date_range.month,
-        'dia': date_range.day,
-        'dia_semana': date_range.dayofweek,  # 0=Monday, 6=Sunday
         'is_business_day': date_range.dayofweek < 5  # True se seg-sex
     })
     
@@ -85,14 +83,7 @@ def extract_and_clean_finance(csv_path: str) -> pd.DataFrame:
     # Limpar números (remove separadores, converte vírgula)
     for col in ['valor_dolar', 'valor_jbs', 'valor_boi_gordo']:
         if col in df.columns:
-            df[col] = (
-                df[col]
-                .astype(str)
-                .str.replace(r'[^\d.,-]', '', regex=True)
-                .str.replace('.', '', regex=False)
-                .str.replace(',', '.', regex=False)
-            )
-            df[col] = pd.to_numeric(df[col], errors='coerce')
+            df[col] = pd.to_numeric(df[col], errors='coerce').round(4)
     
     # IMPORTANTE: Forward fill para preencher fins de semana
     # Isso mantém o último valor de sexta para sábado/domingo
@@ -136,14 +127,7 @@ def extract_and_clean_weather(csv_path: str) -> pd.DataFrame:
     # Limpar números
     for col in ['chuva_mm', 'temp_max']:
         if col in df.columns:
-            df[col] = (
-                df[col]
-                .astype(str)
-                .str.replace(r'[^\d.,-]', '', regex=True)
-                .str.replace('.', '', regex=False)
-                .str.replace(',', '.', regex=False)
-            )
-            df[col] = pd.to_numeric(df[col], errors='coerce')
+            df[col] = pd.to_numeric(df[col], errors='coerce').round(2)
     
     # Localização padrão
     if 'localizacao' not in df.columns:
@@ -165,6 +149,16 @@ def load_to_warehouse(df_finance: pd.DataFrame, df_weather: pd.DataFrame):
     Star Schema: DIM_CALENDARIO + FACT_MERCADO + FACT_CLIMA
     """
     print("\n📦 Carregando no Data Warehouse...")
+    
+    # Limpar tabelas primeiro
+    print("🗑️ Limpando dados antigos...")
+    try:
+        supabase.table('fact_mercado').delete().neq('id', '00000000-0000-0000-0000-000000000000').execute()
+        supabase.table('fact_clima').delete().neq('id', '00000000-0000-0000-0000-000000000000').execute()
+        supabase.table('dim_calendario').delete().neq('data_pk', '1900-01-01').execute()
+        print("✅ Tabelas limpas")
+    except Exception as e:
+        print(f"⚠️ Aviso: {e}")
     
     # 1. Criar dimensão calendário
     min_date = min(df_finance['data'].min(), df_weather['data'].min())
@@ -216,8 +210,42 @@ def run_etl_pipeline():
     print("=" * 60)
     
     # Extract & Transform
-    df_finance = extract_and_clean_finance('csv/finance_data.csv')
-    df_weather = extract_and_clean_weather('csv/weather_data.csv')
+    # Preferir arquivo unificado se existir (dados_agro.csv)
+    unified_path = 'csv/dados_agro.csv'
+    finance_path = 'csv/finance_data.csv'
+    weather_path = 'csv/weather_data.csv'
+
+    if os.path.exists(unified_path):
+        print("📦 Detectado dados_agro.csv (unificado). Gerando DF de mercado e clima...")
+        df = pd.read_csv(unified_path)
+        df.columns = df.columns.str.strip().str.lower()
+        # mapear nomes
+        df = df.rename(columns={
+            'date': 'data',
+            'dolar': 'valor_dolar',
+            'jbs': 'valor_jbs',
+            'boi_gordo': 'valor_boi_gordo',
+            'temp_max': 'temp_max',
+            'chuva_mm': 'chuva_mm'
+        })
+        # separar cópias e aplicar mesmas limpezas das funções dedicadas
+        df_f = df[['data','valor_dolar','valor_jbs','valor_boi_gordo']].copy()
+        df_w = df[['data','temp_max','chuva_mm']].copy()
+
+        # Reaproveitar lógicas de limpeza
+        df_f.to_csv('csv/_tmp_finance.csv', index=False)
+        df_w.to_csv('csv/_tmp_weather.csv', index=False)
+        df_finance = extract_and_clean_finance('csv/_tmp_finance.csv')
+        df_weather = extract_and_clean_weather('csv/_tmp_weather.csv')
+        # limpar temporários
+        try:
+            os.remove('csv/_tmp_finance.csv')
+            os.remove('csv/_tmp_weather.csv')
+        except Exception:
+            pass
+    else:
+        df_finance = extract_and_clean_finance(finance_path)
+        df_weather = extract_and_clean_weather(weather_path)
     
     # Load
     load_to_warehouse(df_finance, df_weather)

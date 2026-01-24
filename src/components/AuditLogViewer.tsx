@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
@@ -9,6 +8,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { FileText, RefreshCw, User, Shield, Database, Settings } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { apiClient } from '@/lib/api-client';
 
 interface AuditLog {
   id: string;
@@ -56,16 +56,15 @@ export function AuditLogViewer() {
 
   const fetchLogs = async () => {
     try {
-      const { data, error } = await supabase
-        .from('audit_logs')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(50);
-
-      if (error) throw error;
-      setLogs((data as AuditLog[]) || []);
+      console.log('🔍 Buscando logs de auditoria...');
+      
+      const data = await apiClient.getAuditLogs(50);
+      console.log('✅ Logs carregados:', data?.length || 0);
+      setLogs(data || []);
     } catch (error) {
       console.error('Error fetching audit logs:', error);
+      // Não mostrar erro ao usuário, apenas log vazio
+      setLogs([]);
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);

@@ -6,6 +6,7 @@
  */
 
 import { supabase } from '@/integrations/supabase/client';
+import type { AppRole } from '@/lib/types';
 
 // Auto-detect API URL
 // In Vercel, the backend is serverless functions under /api, so we use the same origin
@@ -24,6 +25,25 @@ export interface Notification {
   user_id: string | null;
   title: string;
   body: string;
+  created_at: string;
+}
+
+export interface AdminUser {
+  user_id: string;
+  email: string | null;
+  nome: string | null;
+  role: AppRole;
+  created_at: string | null;
+}
+
+export interface AuditLog {
+  id: string;
+  user_id: string;
+  action: string;
+  target_type: string;
+  target_id: string | null;
+  old_value: Record<string, unknown> | null;
+  new_value: Record<string, unknown> | null;
   created_at: string;
 }
 
@@ -79,6 +99,23 @@ class APIClient {
       `/api/notifications/${notificationId}`,
       { method: 'DELETE' }
     );
+  }
+
+  // ============ ADMIN ============
+
+  async getAdminUsers(): Promise<AdminUser[]> {
+    return this.request<AdminUser[]>(`/api/admin/users`);
+  }
+
+  async getAuditLogs(limit: number = 50): Promise<AuditLog[]> {
+    return this.request<AuditLog[]>(`/api/admin/audit-logs?limit=${limit}`);
+  }
+
+  async updateUserRole(userId: string, role: AppRole): Promise<{ success: boolean; role: AppRole; }> {
+    return this.request(`/api/admin/users/${userId}/role`, {
+      method: 'POST',
+      body: JSON.stringify({ role })
+    });
   }
 
   // ============ CSV IMPORT ============
@@ -183,6 +220,36 @@ class APIClient {
     return this.request<any[]>(
       `/api/analytics/lag?${params.toString()}`
     );
+  }
+
+  // ============ REALTIME DATA ============
+
+  async getRealtimeWeather(lat: number = -15.6014, lon: number = -56.0979): Promise<any> {
+    const params = new URLSearchParams();
+    params.append('lat', lat.toString());
+    params.append('lon', lon.toString());
+
+    return this.request<any>(
+      `/api/realtime/weather?${params.toString()}`
+    );
+  }
+
+  async getRealtimeMarket(): Promise<any> {
+    return this.request<any>('/api/realtime/market');
+  }
+
+  async refreshRealtime(lat: number = -15.6014, lon: number = -56.0979): Promise<{ weather: any; market: any; }> {
+    const params = new URLSearchParams();
+    params.append('lat', lat.toString());
+    params.append('lon', lon.toString());
+    return this.request<{ weather: any; market: any; }>(
+      `/api/realtime/refresh?${params.toString()}`,
+      { method: 'POST' }
+    );
+  }
+
+  async getRealtimeStatus(): Promise<{ last_weather_at: string | null; last_market_at: string | null; last_refresh_ok: string | null; }> {
+    return this.request(`/api/realtime/status`);
   }
 }
 

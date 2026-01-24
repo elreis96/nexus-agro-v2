@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { AlertTriangle, Info, AlertCircle, TrendingUp, CloudRain } from 'lucide-react';
-import { useVolatilidadeMensal, useExecutiveStats } from '@/hooks/useMarketData';
+import { useAnalytics, useExecutiveStats } from '@/hooks/useMarketData';
 import type { MarketAlert, AlertLevel } from '@/lib/types';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -46,7 +46,7 @@ function getAlertBadgeVariant(level: AlertLevel): 'destructive' | 'secondary' | 
 }
 
 export function MarketAlerts() {
-  const { data: volatilidade } = useVolatilidadeMensal('6m');
+  const { volatilidade } = useAnalytics({ period: '6m' });
   const { data: stats } = useExecutiveStats();
 
   const alerts = useMemo<MarketAlert[]>(() => {
