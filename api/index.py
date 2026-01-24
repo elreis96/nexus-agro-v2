@@ -1,5 +1,6 @@
+from mangum import Mangum
 from main import app
 
 # Vercel serverless function handler
-# Export app for Vercel to use as the ASGI application
-handler = app
+# Mangum adapts ASGI (FastAPI) to serverless
+handler = Mangum(app, lifespan="off")
