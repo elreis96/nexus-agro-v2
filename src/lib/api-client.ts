@@ -112,7 +112,7 @@ class APIClient {
   }
 
   async updateUserRole(userId: string, role: AppRole): Promise<{ success: boolean; role: AppRole; }> {
-    return this.request(`/api/admin/users/${userId}/role`, {
+    return this.request<{ success: boolean; role: AppRole; }>(`/api/admin/users/${userId}/role`, {
       method: 'POST',
       body: JSON.stringify({ role })
     });
