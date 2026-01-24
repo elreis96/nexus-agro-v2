@@ -331,11 +331,26 @@ def root():
 @app.get("/api/health")
 def health_check():
     """Health check endpoint - no auth required - for debugging Vercel deployment"""
+    is_serverless = os.getenv("VERCEL") == "1"
+    
+    config_status = {
+        "supabase_url": "✓ configured" if SUPABASE_URL else "✗ missing",
+        "supabase_key": "✓ configured" if SUPABASE_KEY else "✗ missing",
+        "allowed_origins": len(ALLOWED_ORIGINS)
+    }
+    
     return {
         "status": "healthy",
         "timestamp": dt.datetime.now(SAO_PAULO_TZ).isoformat(),
-        "supabase": "connected" if supabase else "disconnected",
-        "environment": "serverless" if os.getenv("VERCEL") == "1" else "local"
+        "environment": "serverless (vercel)" if is_serverless else "local/development",
+        "database": "connected" if supabase else "disconnected",
+        "admin_client": "available" if admin_supabase else "not configured",
+        "scheduler": "disabled (serverless)" if is_serverless else "enabled",
+        "config": config_status,
+        "performance": {
+            "max_query_rows": 500,
+            "rate_limit_min": "600/minute"
+        }
     }
 
 @app.get("/health")
@@ -591,6 +606,8 @@ def get_correlation_analysis(
     authorization: Optional[str] = Header(None)
 ):
     print(f"📊 [Correlation] Start: {start_date} to {end_date}")
+    MAX_ROWS = 500  # Limit for serverless performance
+    
     try:
         user = verify_token(authorization)
         
@@ -603,7 +620,7 @@ def get_correlation_analysis(
             query = query.lte('data_fk', end_date)
         
         print("📊 [Correlation] Executing query...")
-        response = query.limit(2000).execute()
+        response = query.limit(MAX_ROWS).execute()
         data = response.data or []
         print(f"📊 [Correlation] Query done. Rows: {len(data)}")
         
@@ -627,6 +644,8 @@ def get_volatility_analysis(
     authorization: Optional[str] = Header(None)
 ):
     print(f"📉 [Volatility] Start: {start_date} to {end_date}")
+    MAX_ROWS = 500  # Limit for serverless performance
+    
     try:
         user = verify_token(authorization)
         if not supabase:
@@ -653,16 +672,22 @@ def get_volatility_analysis(
             query = query.lte('data_fk', end_date)
         
         print("📉 [Volatility] Executing query...")
-        response = query.limit(2000).execute()
+        response = query.limit(MAX_ROWS).execute()
         data = response.data or []
         print(f"📉 [Volatility] Query done. Rows: {len(data)}")
         
         if len(data) < 2:
             return []
         
-        # Calculate monthly volatility (boxplots) using pandas
+        # Calculate monthly volatility (boxplots) using pandas - OPTIMIZED
         df = pd.DataFrame(data)
+        
+        # Convert once at the beginning (not in loop)
         df['data_fk'] = pd.to_datetime(df['data_fk'])
+        df['valor_boi_gordo'] = pd.to_numeric(df['valor_boi_gordo'], errors='coerce')
+        df['valor_dolar'] = pd.to_numeric(df['valor_dolar'], errors='coerce')
+        
+        # Extract year/month
         df['ano'] = df['data_fk'].dt.year
         df['mes'] = df['data_fk'].dt.month
         
@@ -670,10 +695,9 @@ def get_volatility_analysis(
         result = []
         
         for (ano, mes), group in monthly:
-            # Calculate stats for boi
-            # Clean data first - remove nulls
-            boi_series = pd.to_numeric(group['valor_boi_gordo'], errors='coerce').dropna()
-            dolar_series = pd.to_numeric(group['valor_dolar'], errors='coerce').dropna()
+            # Use pre-converted series (already numeric)
+            boi_series = group['valor_boi_gordo'].dropna()
+            dolar_series = group['valor_dolar'].dropna()
             
             if boi_series.empty or dolar_series.empty:
                 continue
