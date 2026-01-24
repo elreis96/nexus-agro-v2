@@ -9,14 +9,19 @@ import { supabase } from '@/integrations/supabase/client';
 import type { AppRole } from '@/lib/types';
 
 // Auto-detect API URL
-// In Vercel, the backend is serverless functions under /api, so we use the same origin
-const isVercel = typeof window !== 'undefined' && window.location.hostname.includes('vercel.app');
-const API_BASE_URL = import.meta.env.VITE_API_URL || 
-  (isVercel ? window.location.origin : 'http://localhost:8000');
+// In production (Vercel), use the same origin; in development, use localhost
+const isProduction = typeof window !== 'undefined' && 
+  (window.location.hostname.includes('vercel.app') || 
+   window.location.hostname !== 'localhost');
+
+const API_BASE_URL = isProduction 
+  ? (typeof window !== 'undefined' ? window.location.origin : '') 
+  : (import.meta.env.VITE_API_URL || 'http://localhost:8000');
 
 console.log('🌐 API Client Initialized:', {
   API_BASE_URL,
-  isVercel,
+  isProduction,
+  hostname: typeof window !== 'undefined' ? window.location.hostname : 'SSR',
   env: import.meta.env.VITE_API_URL
 });
 
