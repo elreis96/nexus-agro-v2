@@ -247,7 +247,7 @@ def get_climate_data(
     return response.data or []
 
 @app.get("/api/analytics/correlation")
-@limiter.limit("60/minute")
+@limiter.limit("600/minute")
 def get_correlation_analysis(
     request: Request,
     start_date: Optional[str] = None,
@@ -277,7 +277,7 @@ def get_correlation_analysis(
     return data
 
 @app.get("/api/analytics/volatility")
-@limiter.limit("60/minute")
+@limiter.limit("600/minute")
 def get_volatility_analysis(
     request: Request,
     start_date: Optional[str] = None,
@@ -346,7 +346,7 @@ def get_volatility_analysis(
     return result
 
 @app.get("/api/analytics/lag")
-@limiter.limit("60/minute")
+@limiter.limit("600/minute")
 def get_lag_analysis(
     request: Request,
     start_date: Optional[str] = None,
