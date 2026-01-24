@@ -330,7 +330,7 @@ def root():
 
 @app.get("/api/health")
 def health_check():
-    """Health check endpoint - no auth required"""
+    """Health check endpoint - no auth required - for debugging Vercel deployment"""
     return {
         "status": "healthy",
         "timestamp": dt.datetime.now(SAO_PAULO_TZ).isoformat(),
