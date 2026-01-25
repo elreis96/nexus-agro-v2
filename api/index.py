@@ -64,8 +64,16 @@ app.state.realtime_status = {
     "last_refresh_ok": None,
 }
 
-# CORS - Configuração segura
-ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "http://localhost:8080,http://localhost:5173").split(",")
+# CORS - Configuração segura (Railway + Vercel + Local)
+railway_url = os.getenv("RAILWAY_STATIC_URL")
+allowed_origins_str = os.getenv("ALLOWED_ORIGINS", "http://localhost:8080,http://localhost:5173")
+ALLOWED_ORIGINS = allowed_origins_str.split(",")
+
+# Adicionar Railway URL automaticamente se existir
+if railway_url and railway_url not in ALLOWED_ORIGINS:
+    ALLOWED_ORIGINS.append(f"https://{railway_url}")
+    
+print(f"🌐 [CORS] Allowed origins: {ALLOWED_ORIGINS}")
 
 app.add_middleware(
     CORSMiddleware,
