@@ -1,8 +1,14 @@
 [phases.setup]
 nixPkgs = ["python311", "python311Packages.pip"]
+aptPkgs = []
 
 [phases.install]
-cmds = ["pip install -r api/requirements.txt"]
+cmds = [
+  "cd api && pip install -r requirements.txt"
+]
+
+[phases.build]
+cmds = []
 
 [start]
-cmd = "uvicorn api.index:app --host 0.0.0.0 --port ${PORT:-8000}"
+cmd = "cd api && uvicorn index:app --host 0.0.0.0 --port ${PORT:-8000}"
