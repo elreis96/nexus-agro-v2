@@ -1,0 +1,10 @@
+# Ignore ALL frontend files - Railway should only build backend
+*
+
+# Keep ONLY backend files
+!api/
+!api/**
+!Procfile
+!nixpacks.toml
+!railway.json
+!.railwayignore
