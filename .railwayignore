@@ -6,5 +6,4 @@
 !api/**
 !Procfile
 !nixpacks.toml
-!railway.json
 !.railwayignore
