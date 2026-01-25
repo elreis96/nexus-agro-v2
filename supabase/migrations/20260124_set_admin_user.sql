@@ -18,13 +18,13 @@ BEGIN
         INSERT INTO public.user_roles (user_id, role)
         VALUES (admin_user_id, 'admin')
         ON CONFLICT (user_id)
-        DO UPDATE SET role = 'admin', updated_at = NOW();
+        DO UPDATE SET role = 'admin';
 
         -- Criar profile se não existir
         INSERT INTO public.profiles (user_id, email, nome)
         VALUES (admin_user_id, 'eduardorobertolinares@hotmail.com', 'Eduardo Linares')
         ON CONFLICT (user_id)
-        DO UPDATE SET email = 'eduardorobertolinares@hotmail.com', updated_at = NOW();
+        DO UPDATE SET email = 'eduardorobertolinares@hotmail.com';
 
         RAISE NOTICE 'Admin role atribuída ao usuário: %', admin_user_id;
     ELSE
