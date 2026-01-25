@@ -169,7 +169,7 @@ export function useExecutiveStats() {
       const thirtyDaysAgo = format(subDays(new Date(), 30), 'yyyy-MM-dd');
       const { data: climaData, error: climaError } = await supabase
         .from('fact_clima')
-        .select('chuva_mm')
+        .select('data_fk, chuva_mm, temp_max')
         .gte('data_fk', thirtyDaysAgo);
       if (climaError) throw climaError;
       
@@ -202,7 +202,7 @@ export function useCurrentMarketData() {
           const thirtyDaysAgo = format(subDays(new Date(), 30), 'yyyy-MM-dd');
           const { data: climaData, error: climaError } = await supabase
             .from('fact_clima')
-            .select('chuva_mm')
+            .select('data_fk, chuva_mm, temp_max')
             .gte('data_fk', thirtyDaysAgo);
           if (climaError) throw climaError;
           const chuvaAcumulada = climaData?.reduce((sum, row) => sum + (row.chuva_mm || 0), 0) || 0;
