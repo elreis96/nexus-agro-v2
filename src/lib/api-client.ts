@@ -9,13 +9,11 @@ import { supabase } from '@/integrations/supabase/client';
 import type { AppRole } from '@/lib/types';
 
 // Auto-detect API URL
-// In production (Vercel), use the same origin; in development, use localhost
-const isProduction = typeof window !== 'undefined' && 
-  (window.location.hostname.includes('vercel.app') || 
-   window.location.hostname !== 'localhost');
+// Use Vite's env to determine production vs development
+const isProduction = import.meta.env.PROD === true;
 
-const API_BASE_URL = isProduction 
-  ? (typeof window !== 'undefined' ? window.location.origin : '') 
+const API_BASE_URL = isProduction
+  ? (typeof window !== 'undefined' ? window.location.origin : '')
   : (import.meta.env.VITE_API_URL || 'http://localhost:8000');
 
 console.log('🌐 API Client Initialized:', {

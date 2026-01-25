@@ -12,8 +12,13 @@ from typing import Optional
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
-from apscheduler.schedulers.asyncio import AsyncIOScheduler
-from apscheduler.triggers.cron import CronTrigger
+# APScheduler (optional in serverless)
+try:
+    from apscheduler.schedulers.asyncio import AsyncIOScheduler
+    from apscheduler.triggers.cron import CronTrigger
+    APSCHEDULER_AVAILABLE = True
+except Exception:
+    APSCHEDULER_AVAILABLE = False
 import pytz
 from pydantic import BaseModel
 
@@ -301,6 +306,10 @@ async def _on_startup():
         print("💡 Use external cron service (Vercel Cron, GitHub Actions) for scheduled tasks")
         return
     
+    if not APSCHEDULER_AVAILABLE:
+        print("ℹ️ APScheduler not installed - skipping local scheduler startup")
+        return
+
     try:
         scheduler = AsyncIOScheduler(timezone=SAO_PAULO_TZ)
         # Weather at 10:00, 13:00, 18:00
