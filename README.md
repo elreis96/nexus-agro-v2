@@ -1,53 +1,79 @@
-# Welcome to your Lovable project
+# 🚜 AgroData Nexus - Projeto Separado (Frontend + Backend)
 
-## Project info
+Esta estrutura separa o projeto em **frontend** (Vercel) e **backend** (Railway) para melhor organização e deployment independente.
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+## 📁 Estrutura do Projeto
 
-## How can I edit this code?
-
-There are several ways of editing your application.
-
-**Use Lovable**
-
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
-
-Changes made via Lovable will be committed automatically to this repo.
-
-**Use your preferred IDE**
-
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
-
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
+```
+agro-data-navigator/
+├── frontend/                    # Aplicação React/Vite (Vercel)
+│   ├── src/                     # Código-fonte React
+│   ├── public/                  # Assets estáticos
+│   ├── package.json             # Dependências Frontend
+│   ├── vercel.json              # Config Vercel
+│   └── ...
+│
+├── backend/                     # API FastAPI (Railway)
+│   ├── api/
+│   │   ├── index.py             # Entrypoint
+│   │   ├── main.py              # FastAPI app
+│   │   ├── requirements.txt      # Dependências Python
+│   ├── Procfile                 # Config Railway
+│   ├── nixpacks.toml            # Nixpacks (Python)
+│   └── .railwayignore
+│
+├── supabase/                    # Migrations
+├── csv/                         # Dados
+├── scripts/                     # ETL
+└── .env                         # Env vars (não commitar)
 ```
 
-**Edit a file directly in GitHub**
+## 🚀 Como Usar
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+### **Frontend (Vercel)**
 
-**Use GitHub Codespaces**
+```bash
+cd frontend
+npm install
+npm run dev          # localhost:5173
+npm run build        # produção
+```
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
+Env vars:
+```env
+VITE_SUPABASE_URL=...
+VITE_SUPABASE_PUBLISHABLE_KEY=...
+VITE_API_URL=https://seu-backend.railway.app
+```
+
+### **Backend (Railway)**
+
+```bash
+cd backend
+pip install -r api/requirements.txt
+python -m uvicorn api.index:app --reload
+```
+
+Env vars:
+```env
+VITE_SUPABASE_URL=...
+VITE_SUPABASE_ANON_KEY=...
+ALLOWED_ORIGINS=https://seu-app.vercel.app
+```
+
+## 🔄 Deploy
+
+1. **Mudanças locais** → `git commit` → `git push`
+2. **Vercel**: Detecta changes em `frontend/` → redeploy
+3. **Railway**: Detecta changes em `backend/` → redeploy
+
+## 📚 Refs
+
+- [Vercel](https://vercel.com/docs)
+- [Railway](https://docs.railway.app)
+- [FastAPI](https://fastapi.tiangolo.com)
+- [Supabase](https://supabase.com/docs)
+
 - Edit files directly within the Codespace and commit and push your changes once you're done.
 
 ## What technologies are used for this project?
