@@ -765,7 +765,7 @@ def get_lag_analysis(
         # 1. Fetch Climate Data (Chuva)
         print("🌧️ [Lag] Querying climate...")
         # Fetch data without complex db-side filtering for nulls to avoid syntax errors
-        clima_query = supabase.table('fact_clima').select('data_fk, chuva_mm')
+        clima_query = supabase.table('fact_clima').select('data_fk, chuva_mm, temp_max')
         if start_date: clima_query = clima_query.gte('data_fk', start_date)
         
         clima_resp = clima_query.order('data_fk').limit(2000).execute()
