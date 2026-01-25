@@ -156,9 +156,20 @@ class AdminRoleUpdate(BaseModel):
 
 
 def _require_admin(user):
-    # TODO: Implement admin role check once service_role_key is available
-    # For now, allow access but log it
-    print(f"⚠️ [Admin] User {user.id} accessing admin endpoint (role check disabled)")
+    """Verify that the user has admin role"""
+    try:
+        client = _get_supabase_client(admin=False)
+        role_res = client.table('user_roles').select('role').eq('user_id', user.id).limit(1).execute()
+        
+        if not role_res.data or role_res.data[0].get('role') != 'admin':
+            raise HTTPException(status_code=403, detail="Admin access required")
+        
+        print(f"✓ [Admin] User {user.id} verified as admin")
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ [Admin] Role check error: {e}")
+        raise HTTPException(status_code=403, detail="Admin verification failed")
 
 # Helper functions
 def clean_number(value):
