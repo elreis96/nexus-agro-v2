@@ -8,12 +8,14 @@
 import { supabase } from '@/integrations/supabase/client';
 import type { AppRole } from '@/lib/types';
 
-// Auto-detect API URL
+// Auto-detect API URL with fallback
 // Use Vite's env to determine production vs development
 const isProduction = import.meta.env.PROD === true;
 
+// ✅ FIXED: Prefer VITE_API_URL in production (Railway backend URL)
+// Falls back to window.location.origin if VITE_API_URL not set
 const API_BASE_URL = isProduction
-  ? (typeof window !== 'undefined' ? window.location.origin : '')
+  ? (import.meta.env.VITE_API_URL || (typeof window !== 'undefined' ? window.location.origin : ''))
   : (import.meta.env.VITE_API_URL || 'http://localhost:8000');
 
 console.log('🌐 API Client Initialized:', {
