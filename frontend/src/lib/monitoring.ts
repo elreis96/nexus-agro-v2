@@ -1,6 +1,11 @@
 /**
  * Monitoring Setup (Sentry/LogRocket)
  * Preparado para integração futura
+ * 
+ * NOTA: Sentry é opcional e só será carregado se:
+ * 1. VITE_SENTRY_DSN estiver configurado
+ * 2. @sentry/react estiver instalado
+ * 3. Estivermos em produção
  */
 
 interface MonitoringConfig {
@@ -14,6 +19,7 @@ class Monitoring {
     enabled: false,
     environment: import.meta.env.MODE,
   };
+  private sentryInitialized = false;
 
   constructor() {
     // Verificar se Sentry DSN está configurado
@@ -21,32 +27,48 @@ class Monitoring {
     if (sentryDsn && import.meta.env.PROD) {
       this.config.enabled = true;
       this.config.dsn = sentryDsn;
-      this.initializeSentry();
+      // Inicializar apenas em runtime, não no construtor
+      if (typeof window !== 'undefined') {
+        // Defer initialization para não bloquear
+        setTimeout(() => this.initializeSentry(), 0);
+      }
     }
   }
 
   private async initializeSentry() {
-    if (!this.config.enabled || !this.config.dsn) return;
+    if (!this.config.enabled || !this.config.dsn || this.sentryInitialized) return;
+    if (typeof window === 'undefined') return;
 
     try {
-      // Dynamic import para não incluir Sentry no bundle se não estiver configurado
-      const Sentry = await import('@sentry/react');
+      // Usar eval para import dinâmico que não é analisado pelo Vite no build time
+      // Isso permite que o build funcione mesmo sem @sentry/react instalado
+      // eslint-disable-next-line @typescript-eslint/no-implied-eval, no-eval
+      const sentryModule = await eval('import("@sentry/react")');
+      const Sentry = sentryModule.default || sentryModule;
       
-      Sentry.init({
-        dsn: this.config.dsn,
-        environment: this.config.environment || 'production',
-        integrations: [
-          Sentry.browserTracingIntegration(),
-          Sentry.replayIntegration(),
-        ],
-        tracesSampleRate: 0.1, // 10% das transações
-        replaysSessionSampleRate: 0.1, // 10% das sessões
-        replaysOnErrorSampleRate: 1.0, // 100% dos erros
-      });
+      if (Sentry && typeof Sentry.init === 'function') {
+        Sentry.init({
+          dsn: this.config.dsn,
+          environment: this.config.environment || 'production',
+          integrations: [
+            Sentry.browserTracingIntegration?.(),
+            Sentry.replayIntegration?.(),
+          ].filter(Boolean),
+          tracesSampleRate: 0.1,
+          replaysSessionSampleRate: 0.1,
+          replaysOnErrorSampleRate: 1.0,
+        });
 
-      console.log('✅ Sentry inicializado');
+        this.sentryInitialized = true;
+        if (import.meta.env.DEV) {
+          console.log('✅ Sentry inicializado');
+        }
+      }
     } catch (error) {
-      console.warn('⚠️ Erro ao inicializar Sentry:', error);
+      // Silenciosamente falhar se Sentry não estiver disponível
+      // Isso é esperado se @sentry/react não estiver instalado
+      this.sentryInitialized = false;
+      // Não logar em produção
     }
   }
 
