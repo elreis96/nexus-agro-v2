@@ -24,6 +24,24 @@ export default defineConfig(({ mode }) => ({
         drop_debugger: true,
       },
     },
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          // Vendor chunks
+          'react-vendor': ['react', 'react-dom', 'react-router-dom'],
+          'ui-vendor': [
+            '@radix-ui/react-dialog',
+            '@radix-ui/react-dropdown-menu',
+            '@radix-ui/react-toast',
+            '@radix-ui/react-tooltip',
+          ],
+          'chart-vendor': ['recharts'],
+          'query-vendor': ['@tanstack/react-query'],
+          'supabase-vendor': ['@supabase/supabase-js'],
+        },
+      },
+    },
+    chunkSizeWarningLimit: 1000, // Aumentar limite para 1MB
   },
   esbuild: {
     drop: mode === 'production' ? ['console', 'debugger'] : [],

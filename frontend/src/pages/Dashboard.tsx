@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { logger } from "@/lib/logger";
 import { Logo } from "@/components/Logo";
 import { ExecutiveCard } from "@/components/ExecutiveCard";
 import { PeriodSelector } from "@/components/PeriodSelector";
@@ -29,6 +30,7 @@ import {
   DashboardSkeleton,
   ChartSkeleton,
 } from "@/components/DashboardSkeletons";
+import { ErrorDisplay } from "@/components/ErrorDisplay";
 
 export default function Dashboard() {
   const [period, setPeriod] = useState<PeriodFilter>("6m");
@@ -42,6 +44,7 @@ export default function Dashboard() {
     correlacao,
     lagChuva,
     isLoading: analyticsLoading,
+    error: analyticsError,
   } = useAnalytics({
     period,
     customRange,
@@ -55,13 +58,14 @@ export default function Dashboard() {
   const { profile, isAdmin, signOut } = useAuth();
   const navigate = useNavigate();
 
-  // Debug: Log data to console
+  // Debug: Log data (only in development)
   useEffect(() => {
-    console.log("📊 Dashboard Data:", {
-      stats,
-      volatilidade: volatilidade?.length,
-      correlacao: correlacao?.length,
-      lagChuva: lagChuva?.length,
+    logger.debug('Dashboard Data Updated', {
+      component: 'Dashboard',
+      stats: !!stats,
+      volatilidade: volatilidade?.length || 0,
+      correlacao: correlacao?.length || 0,
+      lagChuva: lagChuva?.length || 0,
       period,
     });
   }, [stats, volatilidade, correlacao, lagChuva, period]);
@@ -154,6 +158,25 @@ export default function Dashboard() {
             />
           </div>
 
+          {/* Error Display */}
+          {analyticsError && (
+            <div className="mb-6">
+              <ErrorDisplay
+                title="Erro ao carregar dados"
+                message={analyticsError}
+                level="error"
+                action={{
+                  label: "Tentar novamente",
+                  onClick: () => {
+                    // Trigger refetch by changing period slightly
+                    setPeriod(period === "6m" ? "3m" : "6m");
+                    setTimeout(() => setPeriod(period), 100);
+                  },
+                }}
+              />
+            </div>
+          )}
+
           {/* Executive Cards */}
           <section className="mb-8 animate-fade-in">
             <h2 className="font-display text-xl font-semibold mb-4 text-gradient-gold">
@@ -214,15 +237,24 @@ export default function Dashboard() {
                 <ClimateLagChart data={lagChuva} isLoading={lagLoading} />
               ) : (
                 <div className="h-[300px] flex items-center justify-center border border-dashed border-border rounded-lg bg-card/30">
-                  <div className="text-center text-muted-foreground">
-                    <CloudRain className="h-12 w-12 mx-auto mb-3 opacity-20" />
-                    <p className="text-lg font-medium mb-1">
-                      Sem dados climáticos
-                    </p>
-                    <p className="text-sm opacity-70">
-                      Tente selecionar outro período
-                    </p>
-                  </div>
+                  {analyticsError ? (
+                    <ErrorDisplay
+                      title="Erro ao carregar dados climáticos"
+                      message={analyticsError}
+                      level="error"
+                      className="max-w-md"
+                    />
+                  ) : (
+                    <div className="text-center text-muted-foreground">
+                      <CloudRain className="h-12 w-12 mx-auto mb-3 opacity-20" />
+                      <p className="text-lg font-medium mb-1">
+                        Sem dados climáticos
+                      </p>
+                      <p className="text-sm opacity-70">
+                        {analyticsLoading ? 'Carregando dados...' : 'Tente selecionar outro período'}
+                      </p>
+                    </div>
+                  )}
                 </div>
               )}
             </div>

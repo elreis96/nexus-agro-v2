@@ -7,6 +7,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { apiClient } from '@/lib/api-client';
+import { logger } from '@/lib/logger';
 import { subMonths, subDays, format } from 'date-fns';
 import type {
   FactMercado,
@@ -24,13 +25,12 @@ import type {
 const USE_FASTAPI = import.meta.env.VITE_USE_FASTAPI !== 'false' && import.meta.env.PROD;
 
 // Log de debug
-if (import.meta.env.DEV) {
-  console.log('🔧 useMarketData Config:', {
-    USE_FASTAPI,
-    VITE_USE_FASTAPI: import.meta.env.VITE_USE_FASTAPI,
-    PROD: import.meta.env.PROD,
-  });
-}
+logger.debug('useMarketData Config', {
+  component: 'useMarketData',
+  USE_FASTAPI,
+  VITE_USE_FASTAPI: import.meta.env.VITE_USE_FASTAPI,
+  PROD: import.meta.env.PROD,
+});
 
 /**
  * Calcula o range de datas baseado no filtro de período
@@ -91,9 +91,15 @@ export function useAnalytics({ period, customRange }: UseAnalyticsProps) {
   const endStr = format(endDate, 'yyyy-MM-dd');
 
   const fetchAnalytics = useCallback(async () => {
+    const startTime = performance.now();
     setIsLoading(true);
     setError(null);
-    console.log('🔄 [Manual Fetch] Analytics started...', { startStr, endStr, USE_FASTAPI });
+    logger.debug('Analytics fetch started', {
+      component: 'useAnalytics',
+      startStr,
+      endStr,
+      USE_FASTAPI,
+    });
 
     try {
       if (USE_FASTAPI) {
@@ -115,14 +121,17 @@ export function useAnalytics({ period, customRange }: UseAnalyticsProps) {
         })) as unknown as ViewLagChuva60dBoi[];
         setLagChuva(mappedLag);
 
-        console.log('✅ [Manual Fetch] Analytics success (FastAPI):', { 
+        logger.performance('Analytics fetch completed', startTime, {
+          component: 'useAnalytics',
           vol: volData.length, 
           corr: corrData.length, 
-          lag: mappedLag.length 
+          lag: mappedLag.length,
         });
       } else {
         // Fallback: Use Supabase direct queries
-        console.warn('⚠️ USE_FASTAPI is false. Using Supabase direct queries as fallback.');
+        logger.warn('USE_FASTAPI is false, using fallback', {
+          component: 'useAnalytics',
+        });
         
         // TODO: Implementar queries diretas ao Supabase se necessário
         // Por enquanto, deixar vazio para não quebrar o dashboard
@@ -131,18 +140,14 @@ export function useAnalytics({ period, customRange }: UseAnalyticsProps) {
         setLagChuva([]);
       }
     } catch (err) {
-      console.error('❌ [Manual Fetch] Error:', err);
       const errorMessage = err instanceof Error ? err.message : 'Unknown error';
       setError(errorMessage);
       
-      // Log detalhado do erro para debug
-      if (err instanceof Error) {
-        console.error('Error details:', {
-          message: err.message,
-          stack: err.stack,
-          name: err.name,
-        });
-      }
+      logger.error('Analytics fetch failed', err, {
+        component: 'useAnalytics',
+        startStr,
+        endStr,
+      });
       
       // On error, clear data to show error state
       setVolatilidade([]);
@@ -164,7 +169,7 @@ export function useAnalytics({ period, customRange }: UseAnalyticsProps) {
     lagChuva,
     isLoading,
     error,
-    refetch: fetchAnalytics
+    refetch: fetchAnalytics,
   };
 }
 

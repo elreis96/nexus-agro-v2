@@ -41,31 +41,49 @@ export function ExecutiveCard({
   const trendColor = trend === 'up' ? 'text-chart-green' : trend === 'down' ? 'text-chart-red' : 'text-muted-foreground';
   
   return (
-    <div className={`${cardClass} p-5 pulse-live`}>
+    <div 
+      className={`${cardClass} p-5 pulse-live`}
+      role="article"
+      aria-label={`${title}: ${formatValue()}${unit || ''}`}
+    >
       <div className="flex items-start justify-between mb-3">
-        <span className="stat-label">{title}</span>
+        <span className="stat-label" aria-label={title}>{title}</span>
         {icon && (
-          <div className="p-2 rounded-lg bg-primary/10 text-primary">
+          <div 
+            className="p-2 rounded-lg bg-primary/10 text-primary"
+            aria-hidden="true"
+          >
             {icon}
           </div>
         )}
       </div>
       
       <div className="flex items-baseline gap-2">
-        <span className="stat-value text-foreground tabular-nums">
+        <span 
+          className="stat-value text-foreground tabular-nums"
+          aria-live="polite"
+          aria-atomic="true"
+        >
           {formatValue()}
         </span>
-        {unit && <span className="text-muted-foreground text-sm">{unit}</span>}
+        {unit && (
+          <span className="text-muted-foreground text-sm" aria-label={unit}>
+            {unit}
+          </span>
+        )}
       </div>
       
       <div className="flex items-center justify-between mt-3 pt-3 border-t border-border/50">
         {date && (
-          <span className="text-xs text-muted-foreground">
+          <span className="text-xs text-muted-foreground" aria-label={`Última atualização: ${formatDate(date)}`}>
             Última atualização: {formatDate(date)}
           </span>
         )}
         {trend && (
-          <TrendIcon className={`h-4 w-4 ${trendColor}`} />
+          <TrendIcon 
+            className={`h-4 w-4 ${trendColor}`}
+            aria-label={`Tendência: ${trend === 'up' ? 'alta' : trend === 'down' ? 'baixa' : 'neutra'}`}
+          />
         )}
       </div>
     </div>
