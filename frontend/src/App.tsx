@@ -9,6 +9,7 @@ import { ThemeProvider } from "@/contexts/ThemeContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { DashboardSkeleton } from "@/components/DashboardSkeletons";
+import { Analytics } from "@vercel/analytics/react";
 
 // Lazy loading de páginas para code splitting
 const Dashboard = lazy(() => import("./pages/Dashboard"));
@@ -98,6 +99,7 @@ const App = () => (
               </Suspense>
             </AuthProvider>
           </BrowserRouter>
+          <Analytics />
         </TooltipProvider>
       </ThemeProvider>
     </QueryClientProvider>
