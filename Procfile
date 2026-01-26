@@ -1,1 +1,1 @@
-web: python -m uvicorn api.index:app --host 0.0.0.0 --port ${PORT:-8000} --http h2c --loop uvloop
+web: python -m uvicorn api.index:app --host 0.0.0.0 --port ${PORT:-8000} --http h2c
