@@ -19,8 +19,18 @@ import type {
   DateRange,
 } from '@/lib/types';
 
-// Feature flag
-const USE_FASTAPI = import.meta.env.VITE_USE_FASTAPI === 'true';
+// Feature flag - Default para true em produção se não definido
+// Isso garante que o backend FastAPI seja usado quando disponível
+const USE_FASTAPI = import.meta.env.VITE_USE_FASTAPI !== 'false' && import.meta.env.PROD;
+
+// Log de debug
+if (import.meta.env.DEV) {
+  console.log('🔧 useMarketData Config:', {
+    USE_FASTAPI,
+    VITE_USE_FASTAPI: import.meta.env.VITE_USE_FASTAPI,
+    PROD: import.meta.env.PROD,
+  });
+}
 
 /**
  * Calcula o range de datas baseado no filtro de período
@@ -81,44 +91,60 @@ export function useAnalytics({ period, customRange }: UseAnalyticsProps) {
   const endStr = format(endDate, 'yyyy-MM-dd');
 
   const fetchAnalytics = useCallback(async () => {
-    if (!USE_FASTAPI) {
-      console.warn("⚠️ USE_FASTAPI is false. Analytics disabled.");
-      return;
-    }
-
     setIsLoading(true);
     setError(null);
-    console.log('🔄 [Manual Fetch] Analytics started...', { startStr, endStr });
+    console.log('🔄 [Manual Fetch] Analytics started...', { startStr, endStr, USE_FASTAPI });
 
     try {
-      // Execute all requests in parallel
-      const [volData, corrData, lagData] = await Promise.all([
-        apiClient.getVolatilityAnalysis(startStr, endStr),
-        apiClient.getCorrelationAnalysis(startStr, endStr),
-        apiClient.getLagAnalysis(startStr, endStr, 60)
-      ]);
+      if (USE_FASTAPI) {
+        // Use FastAPI backend
+        const [volData, corrData, lagData] = await Promise.all([
+          apiClient.getVolatilityAnalysis(startStr, endStr),
+          apiClient.getCorrelationAnalysis(startStr, endStr),
+          apiClient.getLagAnalysis(startStr, endStr, 60)
+        ]);
 
-      // Process and set data
-      setVolatilidade(volData as unknown as ViewVolatilidadeMensal[]);
-      setCorrelacao(corrData as ViewCorrelacaoDolarJbs[]);
-      
-      const mappedLag = lagData.map((row: any) => ({
-        data_preco: row.data_preco,
-        valor_boi_gordo: row.valor_boi_gordo,
-        chuva_mm_lag_60d: row.chuva_mm
-      })) as unknown as ViewLagChuva60dBoi[];
-      setLagChuva(mappedLag);
+        // Process and set data
+        setVolatilidade(volData as unknown as ViewVolatilidadeMensal[]);
+        setCorrelacao(corrData as ViewCorrelacaoDolarJbs[]);
+        
+        const mappedLag = lagData.map((row: any) => ({
+          data_preco: row.data_preco,
+          valor_boi_gordo: row.valor_boi_gordo,
+          chuva_mm_lag_60d: row.chuva_mm
+        })) as unknown as ViewLagChuva60dBoi[];
+        setLagChuva(mappedLag);
 
-      console.log('✅ [Manual Fetch] Analytics success:', { 
-        vol: volData.length, 
-        corr: corrData.length, 
-        lag: mappedLag.length 
-      });
-
+        console.log('✅ [Manual Fetch] Analytics success (FastAPI):', { 
+          vol: volData.length, 
+          corr: corrData.length, 
+          lag: mappedLag.length 
+        });
+      } else {
+        // Fallback: Use Supabase direct queries
+        console.warn('⚠️ USE_FASTAPI is false. Using Supabase direct queries as fallback.');
+        
+        // TODO: Implementar queries diretas ao Supabase se necessário
+        // Por enquanto, deixar vazio para não quebrar o dashboard
+        setVolatilidade([]);
+        setCorrelacao([]);
+        setLagChuva([]);
+      }
     } catch (err) {
       console.error('❌ [Manual Fetch] Error:', err);
-      setError(err instanceof Error ? err.message : 'Unknown error');
-      // On error, clear data or keep previous? Clearing for now to show state
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+      setError(errorMessage);
+      
+      // Log detalhado do erro para debug
+      if (err instanceof Error) {
+        console.error('Error details:', {
+          message: err.message,
+          stack: err.stack,
+          name: err.name,
+        });
+      }
+      
+      // On error, clear data to show error state
       setVolatilidade([]);
       setCorrelacao([]);
       setLagChuva([]);

@@ -5,13 +5,42 @@ import type { Database } from './types';
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
+// ✅ VALIDAÇÃO CRÍTICA: Verificar se variáveis estão definidas
+if (!SUPABASE_URL) {
+  const error = new Error(
+    '❌ VITE_SUPABASE_URL não está definida. Configure no Vercel Dashboard → Environment Variables'
+  );
+  console.error(error);
+  // Em produção, ainda criamos o cliente mas ele falhará nas queries
+  // Isso permite que o app carregue e mostre erro ao usuário
+}
+
+if (!SUPABASE_PUBLISHABLE_KEY) {
+  const error = new Error(
+    '❌ VITE_SUPABASE_PUBLISHABLE_KEY não está definida. Configure no Vercel Dashboard → Environment Variables'
+  );
+  console.error(error);
+}
+
+// Log de debug (apenas em desenvolvimento)
+if (import.meta.env.DEV) {
+  console.log('🔐 Supabase Client Config:', {
+    url: SUPABASE_URL ? `${SUPABASE_URL.substring(0, 30)}...` : '❌ UNDEFINED',
+    key: SUPABASE_PUBLISHABLE_KEY ? `${SUPABASE_PUBLISHABLE_KEY.substring(0, 20)}...` : '❌ UNDEFINED',
+  });
+}
+
 // Import the supabase client like this:
 // import { supabase } from "@/integrations/supabase/client";
 
-export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
-  auth: {
-    storage: localStorage,
-    persistSession: true,
-    autoRefreshToken: true,
+export const supabase = createClient<Database>(
+  SUPABASE_URL || '', // Fallback para string vazia se não definido
+  SUPABASE_PUBLISHABLE_KEY || '', // Fallback para string vazia se não definido
+  {
+    auth: {
+      storage: typeof window !== 'undefined' ? localStorage : undefined,
+      persistSession: true,
+      autoRefreshToken: true,
+    }
   }
-});
+);

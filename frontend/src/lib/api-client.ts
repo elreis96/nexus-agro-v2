@@ -18,11 +18,21 @@ const API_BASE_URL = isProduction
   ? (import.meta.env.VITE_API_URL || (typeof window !== 'undefined' ? window.location.origin : ''))
   : (import.meta.env.VITE_API_URL || 'http://localhost:8000');
 
+// ✅ VALIDAÇÃO: Verificar se API_BASE_URL está configurado em produção
+if (isProduction && !import.meta.env.VITE_API_URL) {
+  console.warn(
+    '⚠️ VITE_API_URL não está definida em produção. ' +
+    'Configure no Vercel Dashboard → Environment Variables. ' +
+    'Usando fallback:', API_BASE_URL
+  );
+}
+
 console.log('🌐 API Client Initialized:', {
   API_BASE_URL,
   isProduction,
   hostname: typeof window !== 'undefined' ? window.location.hostname : 'SSR',
-  env: import.meta.env.VITE_API_URL
+  env: import.meta.env.VITE_API_URL || '❌ NOT SET',
+  warning: isProduction && !import.meta.env.VITE_API_URL ? '⚠️ Using fallback URL' : '✅ OK'
 });
 
 export interface Notification {
