@@ -38,6 +38,11 @@ self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
 
+  // Ignore non-http(s) schemes (e.g., chrome-extension) because Cache API does not support them
+  if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+    return;
+  }
+
   // Estratégia: Cache First para assets estáticos
   if (request.method === 'GET') {
     // Cache assets estáticos (JS, CSS, imagens)
