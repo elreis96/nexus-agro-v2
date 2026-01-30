@@ -104,8 +104,14 @@ def fetch_stock_data(ticker: str = "JBSS3", days: int = 30):
         url = f"https://brapi.dev/api/quote/{ticker}"
         params = {
             'range': f'{days}d',  # Últimos N dias
-            'interval': '1d'
+            'interval': '1d',
         }
+        
+        # Opcional: Usar token se disponível para evitar Rate Limit/401
+        brapi_token = os.getenv("BRAPI_API_TOKEN")
+        if brapi_token:
+            params['token'] = brapi_token
+            
         
         response = requests.get(url, params=params, timeout=10)
         response.raise_for_status()
