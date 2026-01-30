@@ -1,0 +1,43 @@
+name: Daily Data Update
+
+on:
+  schedule:
+    # 10h Brasília = 13h UTC
+    - cron: "0 13 * * 1-5"
+    # 13h Brasília = 16h UTC
+    - cron: "0 16 * * 1-5"
+    # 18h Brasília (fechamento) = 21h UTC
+    - cron: "0 21 * * 1-5"
+  workflow_dispatch: # Permite rodar manualmente a qualquer momento
+
+jobs:
+  update-data:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          cd scripts
+          pip install -r requirements.txt
+
+      - name: Run data fetcher
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          OPENWEATHER_API_KEY: ${{ secrets.OPENWEATHER_API_KEY }}
+          ALPHAVANTAGE_API_KEY: ${{ secrets.ALPHAVANTAGE_API_KEY }}
+        run: |
+          cd scripts
+          python data_fetcher.py
+
+      - name: Notify on failure
+        if: failure()
+        run: echo "Data update failed! Check logs."

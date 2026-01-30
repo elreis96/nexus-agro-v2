@@ -1,0 +1,4 @@
+project_id = "fulklwarlfbttvbjubmw"
+
+[functions.send-critical-alerts]
+verify_jwt = false

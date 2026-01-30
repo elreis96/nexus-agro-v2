@@ -1,0 +1,7 @@
+# cache-bust hint: bump this comment to force Vercel uv reinstall
+fastapi==0.109.2
+uvicorn[standard]==0.27.0
+supabase==2.4.2
+pandas==2.2.0
+python-multipart==0.0.6
+pydantic==2.6.4

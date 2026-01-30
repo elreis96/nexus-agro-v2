@@ -1,0 +1,11 @@
+api/
+api/**
+__pycache__/
+**/__pycache__/
+*.pyc
+requirements.txt
+requirements-dev.txt
+runtime.txt
+scripts/
+/supabase/
+csv/

@@ -1,0 +1,18 @@
+providers = ["python"]
+
+[phases.setup]
+nixPkgs = ["python311", "python311Packages.pip"]
+aptPkgs = []
+
+[phases.install]
+cmds = [
+  "pip install --upgrade pip setuptools wheel",
+  "pip install --no-cache-dir -r api/requirements.txt",
+  "python -c 'import uvicorn; print(f\"uvicorn version: {uvicorn.__version__}\")' || echo 'uvicorn import failed'"
+]
+
+[phases.build]
+cmds = []
+
+[start]
+cmd = "cd api && python -m uvicorn index:app --host 0.0.0.0 --port ${PORT:-8000}"
