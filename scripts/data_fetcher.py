@@ -23,7 +23,15 @@ load_dotenv()
 SUPABASE_URL = os.getenv("SUPABASE_URL") or os.getenv("VITE_SUPABASE_URL")
 SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
 SUPABASE_ANON_KEY = os.getenv("SUPABASE_ANON_KEY") or os.getenv("VITE_SUPABASE_ANON_KEY")
-SUPABASE_KEY = SUPABASE_SERVICE_ROLE_KEY or SUPABASE_ANON_KEY
+
+# Determine which key to use
+if SUPABASE_SERVICE_ROLE_KEY:
+    print("🔑 Using SUPABASE_SERVICE_ROLE_KEY (Admin Mode)")
+    SUPABASE_KEY = SUPABASE_SERVICE_ROLE_KEY
+else:
+    print("⚠️ SUPABASE_SERVICE_ROLE_KEY not found! Using ANON KEY (Read-Only Mode usually)")
+    print("⚠️ Write operations (upsert) will fail if RLS is enabled without an INSERT policy for anon.")
+    SUPABASE_KEY = SUPABASE_ANON_KEY
 
 # API Keys (adicionar no .env)
 OPENWEATHER_KEY = os.getenv("OPENWEATHER_API_KEY")
