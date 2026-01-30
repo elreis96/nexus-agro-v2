@@ -20,8 +20,10 @@ from bs4 import BeautifulSoup
 
 load_dotenv()
 
-SUPABASE_URL = os.getenv("VITE_SUPABASE_URL")
-SUPABASE_KEY = os.getenv("VITE_SUPABASE_ANON_KEY")
+SUPABASE_URL = os.getenv("SUPABASE_URL") or os.getenv("VITE_SUPABASE_URL")
+SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
+SUPABASE_ANON_KEY = os.getenv("SUPABASE_ANON_KEY") or os.getenv("VITE_SUPABASE_ANON_KEY")
+SUPABASE_KEY = SUPABASE_SERVICE_ROLE_KEY or SUPABASE_ANON_KEY
 
 # API Keys (adicionar no .env)
 OPENWEATHER_KEY = os.getenv("OPENWEATHER_API_KEY")
@@ -31,9 +33,11 @@ ALPHAVANTAGE_KEY = os.getenv("ALPHAVANTAGE_API_KEY")
 if not SUPABASE_URL or not SUPABASE_KEY:
     raise ValueError(
         "❌ Missing required environment variables!\n"
-        "Please set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in GitHub Secrets.\n"
-        f"VITE_SUPABASE_URL: {'✅ SET' if SUPABASE_URL else '❌ MISSING'}\n"
-        f"VITE_SUPABASE_ANON_KEY: {'✅ SET' if SUPABASE_KEY else '❌ MISSING'}"
+        "Please set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in GitHub Secrets (preferred).\n"
+        "Fallback: SUPABASE_ANON_KEY or VITE_SUPABASE_ANON_KEY (read-only).\n"
+        f"SUPABASE_URL: {'✅ SET' if SUPABASE_URL else '❌ MISSING'}\n"
+        f"SUPABASE_SERVICE_ROLE_KEY: {'✅ SET' if SUPABASE_SERVICE_ROLE_KEY else '❌ MISSING'}\n"
+        f"SUPABASE_ANON_KEY: {'✅ SET' if SUPABASE_ANON_KEY else '❌ MISSING'}"
     )
 
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
